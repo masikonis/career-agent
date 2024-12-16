@@ -1,6 +1,6 @@
-# Career Agent
+# Career Crew
 
-A set of AI tools designed to help me grow professionally and find job opportunities more efficiently.
+A personal crew of AI agents that help me spot opportunities, track industry trends, and grow professionally.
 
 ## Tech Stack
 
