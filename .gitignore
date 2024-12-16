@@ -1,3 +1,6 @@
+# Local data and databases
+data/
+
 # Python
 __pycache__/
 *.py[cod]
