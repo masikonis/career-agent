@@ -18,8 +18,7 @@ def load_config() -> Dict[str, str]:
     config = {
         'ZENROWS_API_KEY': os.getenv('ZENROWS_API_KEY'),
         'OPENAI_API_KEY': os.getenv('OPENAI_API_KEY'),
-        'LANGCHAIN_API_KEY': os.getenv('LANGCHAIN_API_KEY'),
-        # Add other config variables here
+        'LANGCHAIN_API_KEY': os.getenv('LANGCHAIN_API_KEY')
     }
     
     # Restore original env vars if needed
