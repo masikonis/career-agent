@@ -26,7 +26,7 @@ class CapabilityAgent:
         self.profile_manager = profile_manager
         self.llm = llm or ChatOpenAI(
             temperature=0,
-            model=config['LLM_MODELS']['advanced'],
+            model=config['LLM_MODELS']['basic'],
             streaming=True
         )
         
@@ -36,42 +36,107 @@ class CapabilityAgent:
         
     def _build_graph(self):
         logger.info("Building the capability agent graph.")
-        # Use MessagesState instead of AgentState
         graph = StateGraph(MessagesState)
         
-        # Define tools using only existing ProfileManager methods
+        # Define tools using ProfileManager's comprehensive methods
         tools = [
             Tool(
                 name="get_all_capabilities",
                 func=self._wrap_async(lambda _: self.profile_manager.get_capabilities()),
-                description="Returns a complete list of all professional capabilities and skills. Use this when you need a comprehensive overview."
+                description="Returns a complete list of all capabilities with full details including name, category, level, experience, and examples. No arguments needed."
             ),
             Tool(
                 name="get_capabilities_by_category",
                 func=self._wrap_async(self.profile_manager.get_capabilities_by_category),
-                description="Returns capabilities filtered by specific category. Input should be a category name like 'Hard Skills', 'Soft Skills', 'Domain Knowledge', or 'Tools/Platforms'. Use this for focused category exploration."
+                description="""Returns capabilities filtered by category. 
+Arguments: 
+- category (str): One of 'Hard Skills', 'Soft Skills', 'Domain Knowledge', 'Tools/Platforms'
+Example: get_capabilities_by_category('Hard Skills')"""
+            ),
+            Tool(
+                name="get_capabilities_by_level",
+                func=self._wrap_async(self.profile_manager.get_capabilities_by_level),
+                description="""Returns capabilities filtered by expertise level. 
+Arguments:
+- level (str): One of 'Expert', 'Advanced', 'Intermediate', 'Basic'
+Example: get_capabilities_by_level('Expert')"""
             ),
             Tool(
                 name="get_top_capabilities",
-                func=self._wrap_async(self.profile_manager.get_top_capabilities),
-                description="Returns a list of top capabilities (Expert/Advanced level skills). Use this when you need to know what Nerijus is most skilled at."
+                func=self._wrap_async(lambda limit=5: self.profile_manager.get_top_capabilities(limit)),
+                description="""Returns top capabilities (Expert/Advanced levels), sorted by expertise level. 
+Arguments:
+- limit (int, optional): Maximum number of capabilities to return. Default is 5.
+Example: get_top_capabilities(3) or get_top_capabilities()"""
             ),
             Tool(
                 name="search_capabilities",
                 func=self._wrap_async(lambda query: self.profile_manager.search_capabilities(query)),
-                description="Returns capabilities that match the search query. Use this when you need to find specific capabilities or skills."
+                description="""Performs semantic search across capabilities, returning relevant matches with similarity scores. 
+Arguments:
+- query (str): Search term or phrase to match against capabilities
+Example: search_capabilities('python development') or search_capabilities('team leadership')"""
+            ),
+            Tool(
+                name="match_requirements",
+                func=self._wrap_async(lambda reqs: self.profile_manager.match_requirements(reqs.split(','))),
+                description="""Matches requirements against capabilities, providing detailed matching analysis. 
+Arguments:
+- reqs (str): Comma-separated list of required skills or competencies
+Returns: Dictionary with matched skills, partial matches, missing skills, and overall match score
+Example: match_requirements('Python,AWS,Team Leadership')"""
+            ),
+            Tool(
+                name="get_expertise_distribution",
+                func=self._wrap_async(lambda _: self.profile_manager.get_expertise_distribution()),
+                description="""Returns distribution of capabilities across expertise levels (Expert, Advanced, Intermediate, Basic).
+No arguments needed. Returns a dictionary with capabilities grouped by level."""
+            ),
+            Tool(
+                name="find_related_capabilities",
+                func=self._wrap_async(self.profile_manager.find_related_capabilities),
+                description="""Finds capabilities semantically related to a given capability. 
+Arguments:
+- capability_name (str): Name of the capability to find relations for
+Returns: List of related capabilities with similarity scores
+Example: find_related_capabilities('Python') might return related programming skills"""
+            ),
+            Tool(
+                name="generate_skill_summary",
+                func=self._wrap_async(lambda format='brief': self.profile_manager.generate_skill_summary(format)),
+                description="""Generates capability summary in specified format. 
+Arguments:
+- format (str): One of:
+  * 'brief': Quick overview of top skills
+  * 'detailed': Comprehensive breakdown by category
+  * 'technical': Focus on technical skills and tools
+  * 'business': Focus on soft skills and domain knowledge
+Example: generate_skill_summary('technical') or generate_skill_summary('brief')"""
             )
         ]
 
-        # Create the agent with tools
+        # Create the agent with enhanced system prompt
         agent = create_openai_functions_agent(
             llm=self.llm,
             tools=tools,
             prompt=ChatPromptTemplate.from_messages([
                 SystemMessage(content="""You are an AI assistant specialized in answering questions about Nerijus's professional capabilities.
-Use the following tools to access accurate information about his skills and experience.
+You have access to comprehensive tools to explore and analyze skills, expertise levels, and professional competencies.
+
+Key guidelines:
+- Use get_all_capabilities for complete overview
+- Use category/level filters for specific queries (get_capabilities_by_category, get_capabilities_by_level)
+- Use get_top_capabilities to focus on Expert/Advanced skills
+- Use search_capabilities for semantic search
+- Use match_requirements for skill gap analysis
+- Use expertise_distribution for level insights
+- Use generate_skill_summary for different perspectives (brief/detailed/technical/business)
+- Use find_related_capabilities to explore skill relationships
+- Use get_expertise_distribution for detailed level breakdown
+                              
 If you don't find specific information about a capability, clearly state that it's not documented.
-Respond in a clear and concise manner."""),
+
+Respond in a clear, professional manner and cite specific data from the tools."""),
                 MessagesPlaceholder(variable_name="messages"),
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
             ])
@@ -84,23 +149,23 @@ Respond in a clear and concise manner."""),
             """Main chatbot node that processes messages"""
             messages = state["messages"]
             logger.debug(f"Processing messages: {messages}")
-            # Ensure correct input handling
+            
             input_message = messages[-1] if messages else None
             if isinstance(input_message, tuple) and input_message[0] == "user":
                 user_message = input_message[1]
-                logger.debug(f"Handling input: {user_message}")
+                logger.debug(f"Handling user input: {user_message}")
             elif isinstance(input_message, HumanMessage):
                 user_message = input_message.content
-                logger.debug(f"Handling input: {user_message}")
+                logger.debug(f"Handling HumanMessage: {user_message}")
             else:
+                logger.warning(f"Unexpected message format: {input_message}")
                 user_message = None
 
             if user_message:
                 response = agent_executor.invoke({"messages": messages})
-                logger.debug(f"Response generated: {response}")
-                # Add the assistant's response to the messages list
+                logger.debug(f"Generated response: {response}")
                 messages.append(("assistant", response["output"]))
-                logger.debug(f"State after processing: {state}")
+                
             return {"messages": messages}
             
         # Add nodes and edges
