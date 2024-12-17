@@ -1,26 +1,26 @@
 from dotenv import load_dotenv
 import os
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
+import openai
+from langsmith.wrappers import wrap_openai
+from langsmith import traceable
 
 def main():
     # Load environment variables
     load_dotenv()
     
-    # Debug: Print first few chars of keys
-    openai_key = os.getenv('OPENAI_API_KEY', 'not set')
-    langchain_key = os.getenv('LANGCHAIN_API_KEY', 'not set')
+    # Wrap the OpenAI client
+    client = wrap_openai(openai.Client(api_key=os.getenv('OPENAI_API_KEY')))
     
-    print(f"OPENAI_API_KEY starts with: {openai_key[:7]}...")
-    print(f"LANGCHAIN_API_KEY starts with: {langchain_key[:7]}...")
+    @traceable
+    def chat_pipeline(user_input: str):
+        response = client.chat.completions.create(
+            messages=[{"role": "user", "content": user_input}],
+            model="gpt-4o-mini"
+        )
+        return response.choices[0].message.content
     
-    # Initialize chat model
-    chat = ChatOpenAI()
-    
-    # Simple test message
-    messages = [HumanMessage(content="Say hello!")]
-    response = chat.invoke(messages)
-    print(response.content)
+    # Test the chat pipeline
+    print(chat_pipeline("Say hello!"))
 
 if __name__ == "__main__":
     main()

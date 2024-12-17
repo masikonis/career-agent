@@ -26,6 +26,7 @@ class ProfileManager:
         capabilities = await self.get_capabilities()
         top_levels = ['Expert', 'Advanced']
         top_caps = [cap for cap in capabilities if cap['level'] in top_levels]
+        limit = int(limit) if isinstance(limit, (int, float, str)) and str(limit).isdigit() else 5
         return sorted(top_caps, key=lambda x: ['Expert', 'Advanced'].index(x['level']))[:limit]
     
     async def search_capabilities(self, query: str) -> List[Dict]:

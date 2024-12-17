@@ -18,6 +18,7 @@ langchain-openai = "^0.2.12"
 langchain-community = "^0.3.12"
 notion-client = "^2.2.1"
 nest-asyncio = "^1.6.0"
+langsmith = "^0.2.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
