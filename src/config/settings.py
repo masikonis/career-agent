@@ -6,7 +6,8 @@ from typing import Dict
 LLM_MODELS = {
     'basic': 'gpt-4o-mini',
     'advanced': 'gpt-4o',
-    'reasoning': 'o1-preview'
+    'reasoning': 'o1-preview',
+    'embeddings': 'text-embedding-3-small'
 }
 
 def load_config() -> Dict[str, str]:
