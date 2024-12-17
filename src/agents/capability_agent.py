@@ -1,10 +1,10 @@
-from typing import Annotated, TypedDict
+from typing import Annotated, TypedDict, Optional, Any, Callable, Union
 import asyncio
 import nest_asyncio
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import Tool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
@@ -130,7 +130,18 @@ Respond in a clear and concise manner."""),
 
     @traceable
     async def chat(self, message: str) -> str:
-        """Process a message through the graph and return response"""
+        """
+        Process a message through the graph and return response.
+        
+        Args:
+            message: The user's input message
+            
+        Returns:
+            str: The agent's response
+            
+        Raises:
+            Exception: If there's an error processing the message
+        """
         logger.info(f"Received message: {message}")
         try:
             # Append the new user message to the state
