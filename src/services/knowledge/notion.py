@@ -18,7 +18,8 @@ class NotionKnowledge(BaseKnowledge):
                     'name': props['Name']['title'][0]['text']['content'],
                     'category': props['Category']['select']['name'],
                     'level': props['Level']['select']['name'],
-                    'experience': props['Experience']['rich_text'][0]['text']['content']
+                    'experience': props['Experience']['rich_text'][0]['text']['content'],
+                    'examples': props['Examples']['rich_text'][0]['text']['content'] if props['Examples']['rich_text'] else ''
                 }
                 capabilities.append(capability)
             

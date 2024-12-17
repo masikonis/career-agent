@@ -49,7 +49,7 @@ class CapabilityAgent:
             Tool(
                 name="get_capabilities_by_category",
                 func=self._wrap_async(self.profile_manager.get_capabilities_by_category),
-                description="Returns capabilities filtered by specific category. Input should be a category name like 'Technical' or 'Leadership'. Use this for focused category exploration."
+                description="Returns capabilities filtered by specific category. Input should be a category name like 'Hard Skills', 'Soft Skills', 'Domain Knowledge', or 'Tools/Platforms'. Use this for focused category exploration."
             ),
             Tool(
                 name="get_top_capabilities",
