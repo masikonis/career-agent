@@ -1,13 +1,12 @@
 import logging
 
-def get_logger(name: str) -> logging.Logger:
+def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """Get a logger instance with the specified name."""
     logger = logging.getLogger(name)
     if not logger.hasHandlers():
-        # Configure logging only if it hasn't been configured yet
+        logger.setLevel(level)
         handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
     return logger 

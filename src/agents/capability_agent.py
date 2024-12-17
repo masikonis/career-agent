@@ -4,7 +4,7 @@ import nest_asyncio
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import Tool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
@@ -30,20 +30,23 @@ class CapabilityAgent:
         self.profile_manager = profile_manager
         self.llm = llm or ChatOpenAI(temperature=0, model=config['LLM_MODELS']['advanced'])
         
-        # Build the graph
-        self.graph = self._build_graph()
+        # Initialize state with an empty messages list
+        initial_state = {"messages": []}
+        
+        # Build the graph with initial state
+        self.graph = self._build_graph(initial_state)
         logger.info("CapabilityAgent initialized with graph built.")
         
-    def _build_graph(self):
+    def _build_graph(self, initial_state):
         logger.info("Building the capability agent graph.")
-        # Create graph builder with defined state
-        graph = StateGraph(AgentState)
+        # Initialize the StateGraph without the initial_state argument
+        graph = StateGraph(AgentState)  # Adjust this line based on the correct initialization method
         
         # Define tools using only existing ProfileManager methods
         tools = [
             Tool(
                 name="get_all_capabilities",
-                func=self._wrap_async(lambda: self.profile_manager.get_capabilities()),
+                func=self._wrap_async(lambda _: self.profile_manager.get_capabilities()),
                 description="Get a list of all capabilities"
             ),
             Tool(
@@ -84,13 +87,23 @@ class CapabilityAgent:
             messages = state["messages"]
             logger.debug(f"Processing messages: {messages}")
             # Ensure correct input handling
-            if isinstance(messages, dict) and "input" in messages:
-                input_value = messages["input"]
-                # Handle input_value appropriately
-                logger.debug(f"Handling input: {input_value}")
-            response = agent_executor.invoke({"messages": messages})
-            logger.debug(f"Response generated: {response}")
-            return {"messages": [response["output"]]}
+            input_message = messages[-1] if messages else None
+            if isinstance(input_message, tuple) and input_message[0] == "user":
+                user_message = input_message[1]
+                logger.debug(f"Handling input: {user_message}")
+            elif isinstance(input_message, HumanMessage):
+                user_message = input_message.content
+                logger.debug(f"Handling input: {user_message}")
+            else:
+                user_message = None
+
+            if user_message:
+                response = agent_executor.invoke({"messages": messages})
+                logger.debug(f"Response generated: {response}")
+                # Add the assistant's response to the messages list
+                messages.append(("assistant", response["output"]))
+                logger.debug(f"State after processing: {state}")
+            return {"messages": messages}
             
         # Add nodes and edges
         graph.add_node("chatbot", chatbot)
@@ -116,13 +129,20 @@ class CapabilityAgent:
         """Process a message through the graph and return response"""
         logger.info(f"Received message: {message}")
         try:
+            # Append the new user message to the state
             response = await self.graph.ainvoke(
                 {"messages": [("user", message)]}
             )
-            # Convert message to string if needed
+            # Extract the content from the last message
             last_message = response["messages"][-1]
             logger.info(f"Response generated: {last_message}")
-            return last_message.content if hasattr(last_message, 'content') else str(last_message)
+            # Check if last_message is a structured object with a 'content' attribute
+            if hasattr(last_message, 'content'):
+                return last_message.content
+            elif isinstance(last_message, tuple):
+                return last_message[1]
+            else:
+                return str(last_message)
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
             return f"Error processing message: {str(e)}"

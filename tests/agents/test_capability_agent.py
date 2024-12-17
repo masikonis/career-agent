@@ -39,7 +39,7 @@ async def test_graph_state(capability_agent):
     assert response1 is not None
     
     # Follow-up question should have context from first message
-    response2 = await capability_agent.chat("Can you elaborate on the first one?")
+    response2 = await capability_agent.chat("Can you elaborate on the first capability listed as top 1 skill?")
     assert response2 is not None
     assert len(response2) > 0
     print(f"\nFollow-up response: {response2}")
