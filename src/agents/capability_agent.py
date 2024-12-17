@@ -24,7 +24,11 @@ class CapabilityAgent:
     
     def __init__(self, profile_manager: ProfileManager, llm=None):
         self.profile_manager = profile_manager
-        self.llm = llm or ChatOpenAI(temperature=0, model=config['LLM_MODELS']['advanced'])
+        self.llm = llm or ChatOpenAI(
+            temperature=0,
+            model=config['LLM_MODELS']['advanced'],
+            streaming=True
+        )
         
         # Initialize state using MessagesState
         self.graph = self._build_graph()
@@ -122,7 +126,7 @@ Respond in a clear and concise manner."""),
         return wrapper
 
     @traceable
-    async def chat(self, message: str) -> str:
+    async def chat(self, message: str, timeout: Optional[float] = 30.0) -> str:
         """
         Process a message through the graph and return response.
         
@@ -137,9 +141,9 @@ Respond in a clear and concise manner."""),
         """
         logger.info(f"Received message: {message}")
         try:
-            # Append the new user message to the state
-            response = await self.graph.ainvoke(
-                {"messages": [("user", message)]}
+            response = await asyncio.wait_for(
+                self.graph.ainvoke({"messages": [("user", message)]}),
+                timeout=timeout
             )
             # Extract the content from the last message
             last_message = response["messages"][-1]
