@@ -114,15 +114,18 @@ Respond in a clear and concise manner."""),
         return graph.compile()
 
     def _wrap_async(self, coro):
-        """Wrap an async function to make it sync"""
+        """Wrap an async function to make it sync with better error handling"""
         def wrapper(*args, **kwargs):
             try:
                 loop = asyncio.get_event_loop()
             except RuntimeError:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-            # Ensure no extra arguments are passed to coro
-            return loop.run_until_complete(coro(*args, **kwargs))
+            try:
+                return loop.run_until_complete(coro(*args, **kwargs))
+            except Exception as e:
+                logger.error(f"Tool execution error: {str(e)}")
+                return f"Error executing tool: {str(e)}"
         return wrapper
 
     @traceable
