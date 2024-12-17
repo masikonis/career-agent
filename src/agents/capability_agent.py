@@ -47,22 +47,22 @@ class CapabilityAgent:
             Tool(
                 name="get_all_capabilities",
                 func=self._wrap_async(lambda _: self.profile_manager.get_capabilities()),
-                description="Get a list of all capabilities"
+                description="Returns a complete list of all professional capabilities and skills. Use this when you need a comprehensive overview."
             ),
             Tool(
                 name="get_capabilities_by_category",
                 func=self._wrap_async(self.profile_manager.get_capabilities_by_category),
-                description="Get capabilities filtered by category (e.g., Technical, Leadership)"
+                description="Returns capabilities filtered by specific category. Input should be a category name like 'Technical' or 'Leadership'. Use this for focused category exploration."
             ),
             Tool(
                 name="get_top_capabilities",
                 func=self._wrap_async(self.profile_manager.get_top_capabilities),
-                description="Get top capabilities (Expert/Advanced level skills)"
+                description="Returns a list of top capabilities (Expert/Advanced level skills). Use this when you need to know what Nerijus is most skilled at."
             ),
             Tool(
                 name="search_capabilities",
                 func=self._wrap_async(lambda query: self.profile_manager.search_capabilities(query)),
-                description="Search for specific capabilities by keyword"
+                description="Returns capabilities that match the search query. Use this when you need to find specific capabilities or skills."
             )
         ]
 
