@@ -2,6 +2,13 @@ from dotenv import load_dotenv
 import os
 from typing import Dict
 
+# Add model configurations
+LLM_MODELS = {
+    'basic': 'gpt-4o-mini',
+    'advanced': 'gpt-4o',
+    'reasoning': 'o1-preview'
+}
+
 def load_config() -> Dict[str, str]:
     """Load configuration, prioritizing .env file over environment variables"""
     # First, store any existing env vars we want to override
@@ -14,12 +21,13 @@ def load_config() -> Dict[str, str]:
     # Now load .env file
     load_dotenv(override=True)
     
-    # Create config dictionary
+    # Create config dictionary with added models
     config = {
         'ZENROWS_API_KEY': os.getenv('ZENROWS_API_KEY'),
         'OPENAI_API_KEY': os.getenv('OPENAI_API_KEY'),
         'LANGCHAIN_API_KEY': os.getenv('LANGCHAIN_API_KEY'),
-        'NOTION_API_KEY': os.getenv('NOTION_API_KEY')
+        'NOTION_API_KEY': os.getenv('NOTION_API_KEY'),
+        'LLM_MODELS': LLM_MODELS
     }
     
     # Restore original env vars if needed

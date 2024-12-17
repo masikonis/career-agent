@@ -58,14 +58,15 @@ async def test_unknown_topic(capability_agent):
     response = await capability_agent.chat("What's your experience with quantum computing?")
     assert response is not None
     assert isinstance(response, str)
-    # Check for various ways the AI might indicate missing information
+    # Add "no documented information" to the list of acceptable phrases
     possible_phrases = [
         "i don't have",
         "couldn't find",
         "not documented",
         "no information",
         "not available",
-        "don't have any documented"
+        "don't have any documented",
+        "no documented information"
     ]
     assert any(phrase in response.lower() for phrase in possible_phrases), f"Response '{response}' should indicate missing information"
     print(f"\nResponse to unknown topic: {response}")

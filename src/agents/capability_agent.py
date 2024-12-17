@@ -9,6 +9,7 @@ from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from src.profile.manager import ProfileManager
+from src.config.settings import config
 
 # Enable nested event loops
 nest_asyncio.apply()
@@ -22,7 +23,7 @@ class CapabilityAgent:
     
     def __init__(self, profile_manager: ProfileManager, llm=None):
         self.profile_manager = profile_manager
-        self.llm = llm or ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
+        self.llm = llm or ChatOpenAI(temperature=0, model=config['LLM_MODELS']['advanced'])
         
         # Build the graph
         self.graph = self._build_graph()
