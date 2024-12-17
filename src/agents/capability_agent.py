@@ -71,9 +71,10 @@ class CapabilityAgent:
             llm=self.llm,
             tools=tools,
             prompt=ChatPromptTemplate.from_messages([
-                SystemMessage(content="""You are an AI assistant that helps answer questions about Nerijus's professional capabilities.
-                Use the provided tools to access accurate information about his skills and experience.
-                If you don't find specific information about a capability, clearly state that it's not documented."""),
+                SystemMessage(content="""You are an AI assistant specialized in answering questions about Nerijus's professional capabilities.
+Use the following tools to access accurate information about his skills and experience.
+If you don't find specific information about a capability, clearly state that it's not documented.
+Respond in a clear and concise manner."""),
                 MessagesPlaceholder(variable_name="messages"),
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
             ])
