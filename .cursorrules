@@ -1,2 +1,3 @@
 - Always check LangChain/LangSmith/LangGraph documentation before suggesting changes to ensure compliance with best practices and latest standards.
 - Always use gpt-4o-mini for basic LLM tasks, gpt-4o for advanced operations, and o1-preview for complex reasoning tasks.
+- Always use the get_logger function from src/utils/logger.py for logging.

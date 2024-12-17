@@ -2,7 +2,7 @@ from typing import Dict, Any, Optional
 from src.config.settings import config
 from zenrows import ZenRowsClient
 from dataclasses import dataclass
-import logging
+from src.utils.logger import get_logger
 from urllib.parse import urlparse
 
 @dataclass
@@ -28,7 +28,7 @@ class ZenrowsScraper:
         
         self.options = options or {}
         self.client = ZenRowsClient(self.api_key)
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
     def _validate_url(self, url: str) -> bool:
         """Validate URL format"""
