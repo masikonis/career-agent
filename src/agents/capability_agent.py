@@ -30,7 +30,6 @@ class CapabilityAgent:
             streaming=True
         )
         
-        # Initialize state using MessagesState
         self.graph = self._build_graph()
         logger.info("CapabilityAgent initialized with graph built.")
         
