@@ -16,6 +16,7 @@ zenrows = "^1.4.0"
 chromadb = "^0.5.23"
 langchain-openai = "^0.2.12"
 langchain-community = "^0.3.12"
+notion-client = "^2.2.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
