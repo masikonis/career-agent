@@ -12,13 +12,13 @@ from langgraph.graph.message import add_messages
 from src.profile.manager import ProfileManager
 from src.config.settings import config
 from langsmith import traceable
+from src.utils.logger import get_logger
 
 # Enable nested event loops
 nest_asyncio.apply()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class AgentState(TypedDict):
     """State definition for the capability agent graph"""
