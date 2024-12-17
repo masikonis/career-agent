@@ -6,7 +6,7 @@ from langchain_core.tools import Tool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
 from langchain.agents import AgentExecutor, create_openai_functions_agent
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph, END, MessagesState
 from langgraph.graph.message import add_messages
 from src.profile.manager import ProfileManager
 from src.config.settings import config
@@ -19,10 +19,6 @@ nest_asyncio.apply()
 # Configure logging
 logger = get_logger(__name__)
 
-class AgentState(TypedDict):
-    """State definition for the capability agent graph"""
-    messages: Annotated[list, add_messages]
-
 class CapabilityAgent:
     """Agent that understands and can discuss capabilities using a graph-based approach"""
     
@@ -30,16 +26,14 @@ class CapabilityAgent:
         self.profile_manager = profile_manager
         self.llm = llm or ChatOpenAI(temperature=0, model=config['LLM_MODELS']['advanced'])
         
-        # Initialize state with an empty messages list
-        initial_state = {"messages": []}
-        
-        # Build the graph with initial state
-        self.graph = self._build_graph(initial_state)
+        # Initialize state using MessagesState
+        self.graph = self._build_graph()
         logger.info("CapabilityAgent initialized with graph built.")
         
-    def _build_graph(self, initial_state):
+    def _build_graph(self):
         logger.info("Building the capability agent graph.")
-        graph = StateGraph(AgentState)
+        # Use MessagesState instead of AgentState
+        graph = StateGraph(MessagesState)
         
         # Define tools using only existing ProfileManager methods
         tools = [
@@ -82,7 +76,7 @@ Respond in a clear and concise manner."""),
         # Create the agent executor
         agent_executor = AgentExecutor(agent=agent, tools=tools)
         
-        def chatbot(state: AgentState):
+        def chatbot(state: MessagesState):
             """Main chatbot node that processes messages"""
             messages = state["messages"]
             logger.debug(f"Processing messages: {messages}")

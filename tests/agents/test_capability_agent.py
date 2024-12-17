@@ -1,5 +1,5 @@
 import pytest
-from src.agents.capability_agent import CapabilityAgent, AgentState
+from src.agents.capability_agent import CapabilityAgent
 from src.profile.manager import ProfileManager
 from src.profile.notion import NotionProfileSource
 from src.services.knowledge.notion import NotionKnowledge
