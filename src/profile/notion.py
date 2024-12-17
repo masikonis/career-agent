@@ -11,4 +11,4 @@ class NotionProfileSource(ProfileDataSource):
     
     async def get_capabilities(self) -> List[Dict]:
         """Get capabilities from Notion database"""
-        return await self.notion.get_data(self.capabilities_db)
+        return await self.notion.get_capabilities(self.capabilities_db)
