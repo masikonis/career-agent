@@ -28,4 +28,4 @@ def load_config() -> Dict[str, str]:
     return config
 
 # Create a global config object
-config = load_config() 
+config = load_config()

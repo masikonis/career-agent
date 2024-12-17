@@ -63,4 +63,4 @@ class VectorStore(ABC):
         Returns:
             True if deletion successful, False otherwise
         """
-        pass 
+        pass

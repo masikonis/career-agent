@@ -26,20 +26,7 @@ class StartupVectorStore(VectorStore):
         """Get a startup by ID and return as Startup model"""
         item = await self.get_item(startup_id)
         if item:
-            # Clean metadata before creating Startup
-            startup_data = {
-                'id': item['metadata'].get('id'),
-                'name': item['metadata'].get('name'),
-                'description': item['description'],
-                'industry': item['metadata'].get('industry'),
-                'stage': item['metadata'].get('stage'),
-                'team_size': item['metadata'].get('team_size'),
-                'tech_stack': item['metadata'].get('tech_stack'),
-                'funding_amount': item['metadata'].get('funding_amount'),
-                'added_at': item['metadata'].get('added_at'),
-                'evaluation': item['metadata'].get('evaluation')
-            }
-            return Startup.from_dict(startup_data)
+            return Startup.from_dict({**item['metadata'], 'description': item['description']})
         return None
 
     async def update_startup(self, startup: Startup) -> bool:
@@ -54,13 +41,12 @@ class StartupVectorStore(VectorStore):
                 'skills_match': ','.join(evaluation.skills_match),
                 'notes': evaluation.notes,
                 'evaluated_at': evaluation.evaluated_at.isoformat()
-            }),
-            'evaluated_at': datetime.now().isoformat()
+            })
         }
         return await self.update_item(startup_id, eval_data)
 
     async def find_similar_startups(self, description: str, n_results: int = 5) -> List[Startup]:
-        """Find similar startups and return as Startup models"""
+        """Find similar startups based on description"""
         results = await self.find_similar(description, n_results)
         return [
             Startup.from_dict({**result['metadata'], 'description': result['description']})
@@ -89,28 +75,8 @@ class StartupVectorStore(VectorStore):
             for meta, doc in zip(results['metadatas'], results['documents'])
         ]
 
-    async def get_by_tech_stack(self, tech: str) -> List[Startup]:
-        """Get startups by tech stack"""
-        # First get all startups
-        results = self.collection.get(
-            include=['metadatas', 'documents']
-        )
-        
-        if not results['ids']:
-            return []
-
-        # Then filter by tech stack manually
-        startups = []
-        for meta, doc in zip(results['metadatas'], results['documents']):
-            tech_stack = meta.get('tech_stack', '').split(',')
-            if tech in tech_stack:
-                startups.append(Startup.from_dict({**meta, 'description': doc}))
-        
-        return startups
-
     async def get_unevaluated_startups(self) -> List[Startup]:
         """Get all startups that haven't been evaluated"""
-        # First get all startups
         results = self.collection.get(
             include=['metadatas', 'documents']
         )
@@ -118,28 +84,14 @@ class StartupVectorStore(VectorStore):
         if not results['ids']:
             return []
 
-        # Then filter manually
-        startups = []
-        for meta, doc in zip(results['metadatas'], results['documents']):
-            if 'evaluation' not in meta or not meta['evaluation']:
-                startup_data = {
-                    'id': meta.get('id'),
-                    'name': meta.get('name'),
-                    'description': doc,
-                    'industry': meta.get('industry'),
-                    'stage': meta.get('stage'),
-                    'team_size': meta.get('team_size'),
-                    'tech_stack': meta.get('tech_stack'),
-                    'funding_amount': meta.get('funding_amount'),
-                    'added_at': meta.get('added_at')
-                }
-                startups.append(Startup.from_dict(startup_data))
-        
-        return startups
+        return [
+            Startup.from_dict({**meta, 'description': doc})
+            for meta, doc in zip(results['metadatas'], results['documents'])
+            if 'evaluation' not in meta or not meta['evaluation']
+        ]
 
     async def get_evaluated_startups(self, min_score: float = 0.0) -> List[Startup]:
         """Get evaluated startups with minimum match score"""
-        # First get all startups
         results = self.collection.get(
             include=['metadatas', 'documents']
         )
@@ -147,7 +99,6 @@ class StartupVectorStore(VectorStore):
         if not results['ids']:
             return []
 
-        # Then filter manually
         startups = []
         for meta, doc in zip(results['metadatas'], results['documents']):
             evaluation_str = meta.get('evaluation')
@@ -155,20 +106,7 @@ class StartupVectorStore(VectorStore):
                 try:
                     evaluation = json.loads(evaluation_str)
                     if evaluation.get('match_score', 0.0) >= min_score:
-                        # Clean metadata before creating Startup
-                        startup_data = {
-                            'id': meta.get('id'),
-                            'name': meta.get('name'),
-                            'description': doc,
-                            'industry': meta.get('industry'),
-                            'stage': meta.get('stage'),
-                            'team_size': meta.get('team_size'),
-                            'tech_stack': meta.get('tech_stack'),
-                            'funding_amount': meta.get('funding_amount'),
-                            'added_at': meta.get('added_at'),
-                            'evaluation': evaluation_str
-                        }
-                        startups.append(Startup.from_dict(startup_data))
+                        startups.append(Startup.from_dict({**meta, 'description': doc}))
                 except json.JSONDecodeError:
                     continue
         
@@ -177,9 +115,6 @@ class StartupVectorStore(VectorStore):
     # Base class implementations
     async def add_item(self, item_id: str, content: str, metadata: Dict[str, Any]) -> None:
         """Add a startup to the vector store"""
-        if not isinstance(metadata.get('added_at'), str):
-            metadata['added_at'] = datetime.now().isoformat()
-        
         self.collection.add(
             documents=[content],
             metadatas=[metadata],
@@ -244,5 +179,3 @@ class StartupVectorStore(VectorStore):
         except Exception as e:
             print(f"Error deleting startup: {e}")
             return False
-    
-    # Implementation of abstract methods... 

@@ -5,20 +5,24 @@ from enum import Enum
 import json
 
 class StartupStage(Enum):
-    SEED = "seed"
-    SERIES_A = "series_a"
-    SERIES_B = "series_b"
-    SERIES_C = "series_c"
-    GROWTH = "growth"
-    IPO = "ipo"
+    """Startup stages focused on early-stage opportunities"""
+    IDEA = "idea"                # Just an idea, pre-MVP
+    PRE_SEED = "pre_seed"        # Working on MVP
+    MVP = "mvp"                  # Has MVP, seeking validation
+    SEED = "seed"                # Has traction, raising seed
+    EARLY = "early"              # Post-seed, early revenue
+    SERIES_A = "series_a"        # Scaling up
+    LATER = "later"              # Beyond Series A (less relevant)
 
 class StartupIndustry(Enum):
-    AI = "artificial_intelligence"
-    FINTECH = "financial_technology"
-    HEALTHTECH = "health_technology"
-    EDTECH = "education_technology"
-    ECOMMERCE = "e_commerce"
-    OTHER = "other"
+    """Digital-first industries where marketing drives growth"""
+    EDTECH = "education"         # Direct experience
+    AGENCY = "agency"            # Direct experience
+    SAAS = "saas"                # Any vertical, marketing-driven
+    MARKETPLACE = "marketplace"  # Two-sided platforms
+    CONTENT = "content"          # Content-driven businesses
+    D2C = "d2c"                  # Direct-to-consumer digital
+    NON_DIGITAL = "non_digital"  # Not primarily digital or marketing-driven
 
 @dataclass
 class StartupEvaluation:
@@ -36,53 +40,50 @@ class Startup:
     description: str
     industry: StartupIndustry
     stage: StartupStage
-    team_size: Optional[int] = None
-    tech_stack: List[str] = field(default_factory=list)
-    funding_amount: Optional[float] = None
     evaluation: Optional[StartupEvaluation] = None
     added_at: datetime = field(default_factory=lambda: datetime.now())
     
     def to_dict(self) -> Dict:
-        """Convert startup to dictionary format with serialized values"""
+        """Convert startup to dictionary format"""
         data = {
             'id': self.id,
             'name': self.name,
             'description': self.description,
-            'industry': self.industry.value,  # Convert enum to string
-            'stage': self.stage.value,        # Convert enum to string
-            'team_size': self.team_size,
-            'tech_stack': ','.join(self.tech_stack),  # Convert list to string
-            'funding_amount': self.funding_amount,
-            'added_at': self.added_at.isoformat() if self.added_at else None,
-            'evaluation': json.dumps(self.evaluation.__dict__) if self.evaluation else None
+            'industry': self.industry.value,
+            'stage': self.stage.value,
+            'added_at': self.added_at.isoformat()
         }
-        # Remove None values as ChromaDB doesn't accept them
-        return {k: v for k, v in data.items() if v is not None}
+        
+        # Only add evaluation if it exists
+        if self.evaluation:
+            data['evaluation'] = json.dumps(self.evaluation.__dict__)
+            
+        return data
     
     @classmethod
     def from_dict(cls, data: Dict) -> 'Startup':
-        """Create Startup instance from dictionary with deserialized values"""
+        """Create Startup instance from dictionary"""
         # Deep copy to avoid modifying input
         data = data.copy()
         
-        # Convert string back to list for tech_stack
-        if 'tech_stack' in data:
-            data['tech_stack'] = data['tech_stack'].split(',') if data['tech_stack'] else []
-            
-        # Convert string back to enum
-        if 'industry' in data:
-            data['industry'] = StartupIndustry(data['industry'])
-        if 'stage' in data:
-            data['stage'] = StartupStage(data['stage'])
-            
-        # Parse dates
-        if 'added_at' in data and data['added_at']:
-            data['added_at'] = datetime.fromisoformat(data['added_at'])
-            
-        # Parse evaluation
+        # Parse evaluation if it exists
         if 'evaluation' in data and data['evaluation']:
             if isinstance(data['evaluation'], str):
-                data['evaluation'] = json.loads(data['evaluation'])
-            data['evaluation'] = StartupEvaluation(**data['evaluation'])
-            
-        return cls(**data) 
+                evaluation_dict = json.loads(data['evaluation'])
+                # Convert comma-separated skills back to list
+                if 'skills_match' in evaluation_dict and isinstance(evaluation_dict['skills_match'], str):
+                    evaluation_dict['skills_match'] = evaluation_dict['skills_match'].split(',')
+                # Parse evaluated_at datetime
+                if 'evaluated_at' in evaluation_dict:
+                    evaluation_dict['evaluated_at'] = datetime.fromisoformat(evaluation_dict['evaluated_at'])
+                data['evaluation'] = StartupEvaluation(**evaluation_dict)
+        
+        # Parse dates
+        if 'added_at' in data:
+            data['added_at'] = datetime.fromisoformat(data['added_at'])
+        
+        # Convert string back to enum
+        data['industry'] = StartupIndustry(data['industry'])
+        data['stage'] = StartupStage(data['stage'])
+        
+        return cls(**data)
