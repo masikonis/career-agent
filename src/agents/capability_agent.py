@@ -39,8 +39,7 @@ class CapabilityAgent:
         
     def _build_graph(self, initial_state):
         logger.info("Building the capability agent graph.")
-        # Initialize the StateGraph without the initial_state argument
-        graph = StateGraph(AgentState)  # Adjust this line based on the correct initialization method
+        graph = StateGraph(AgentState)
         
         # Define tools using only existing ProfileManager methods
         tools = [
