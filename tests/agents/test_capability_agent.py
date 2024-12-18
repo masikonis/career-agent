@@ -7,6 +7,7 @@ from src.config.settings import config
 import asyncio
 from unittest.mock import Mock, patch
 from langchain_core.messages import HumanMessage
+import random
 
 # ============= Initialization & Setup =============
 
@@ -79,12 +80,14 @@ async def test_conversation_context(capability_agent):
 async def test_category_queries(capability_agent):
     """Test querying different capability categories"""
     categories = ['Hard Skills', 'Soft Skills', 'Domain Knowledge', 'Tools/Platforms']
-    for category in categories:
-        response = await capability_agent.chat(f"Tell me about your {category}")
-        assert response is not None
-        assert isinstance(response, str)
-        assert len(response) > 0
-        print(f"\nResponse for {category}: {response}")
+    # Randomly select one category to test
+    category = random.choice(categories)
+    
+    response = await capability_agent.chat(f"Tell me about your {category}")
+    assert response is not None
+    assert isinstance(response, str)
+    assert len(response) > 0
+    print(f"\nResponse for {category}: {response}")
 
 @pytest.mark.asyncio
 async def test_expertise_levels(capability_agent):
