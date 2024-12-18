@@ -30,6 +30,10 @@ class CapabilityAgent:
             streaming=True
         )
         
+        # Get strategy during initialization
+        self.strategy = asyncio.run(self.profile_manager.get_strategy())
+        logger.info("Strategy loaded for context")
+        
         self.graph = self._build_graph()
         logger.info("CapabilityAgent initialized with graph built.")
         
@@ -114,13 +118,18 @@ Example: generate_skill_summary('technical') or generate_skill_summary('brief')"
             )
         ]
 
-        # Create the agent with enhanced system prompt
+        # Create the agent with enhanced system prompt including strategy
         agent = create_openai_functions_agent(
             llm=self.llm,
             tools=tools,
             prompt=ChatPromptTemplate.from_messages([
-                SystemMessage(content="""You are an AI assistant specialized in answering questions about Nerijus's professional capabilities.
+                SystemMessage(content=f"""You are an AI assistant specialized in answering questions about Nerijus's professional capabilities.
 You have access to comprehensive tools to explore and analyze skills, expertise levels, and professional competencies.
+
+Core Strategy and Context:
+<strategy>                              
+{self.strategy['content']}
+</strategy>
 
 Key guidelines:
 - Use get_all_capabilities for complete overview

@@ -176,7 +176,7 @@ async def test_real_world_job_matching(capability_agent):
     """
     
     # Test overall job match
-    response = await capability_agent.chat(f"How well do I match this job posting? Please analyze in detail: {job_posting}")
+    response = await capability_agent.chat(f"How well do I match this job posting? Please analyze in detail: <job_posting>{job_posting}</job_posting>")
     assert response is not None
     assert isinstance(response, str)
     print(f"\nJob matching analysis:\n{response}")

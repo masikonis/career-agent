@@ -28,8 +28,12 @@ class ProfileManager:
         self.vector_store = None
         logger.info("ProfileManager initialized")
     
+    async def get_strategy(self) -> Dict[str, str]:
+        """Get the strategy content from the data source"""
+        return await self.data_source.get_strategy()
+    
     async def get_capabilities(self) -> List[Dict]:
-        """Base method for raw capability access"""
+        """Get all capabilities"""
         return await self.data_source.get_capabilities()
     
     async def get_capabilities_by_category(self, category: str) -> List[Dict]:
