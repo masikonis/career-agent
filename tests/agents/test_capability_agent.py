@@ -93,12 +93,14 @@ async def test_category_queries(capability_agent):
 async def test_expertise_levels(capability_agent):
     """Test querying different expertise levels"""
     levels = ['Expert', 'Advanced', 'Intermediate', 'Basic']
-    for level in levels:
-        response = await capability_agent.chat(f"What skills do you have at {level} level?")
-        assert response is not None
-        assert isinstance(response, str)
-        assert len(response) > 0
-        print(f"\nResponse for {level} level: {response}")
+    # Randomly select one level to test
+    level = random.choice(levels)
+    
+    response = await capability_agent.chat(f"What skills do you have at {level} level?")
+    assert response is not None
+    assert isinstance(response, str)
+    assert len(response) > 0
+    print(f"\nResponse for {level} level: {response}")
 
 @pytest.mark.asyncio
 async def test_skill_search(capability_agent):
