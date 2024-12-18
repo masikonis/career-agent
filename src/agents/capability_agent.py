@@ -2,7 +2,7 @@ from typing import Annotated, TypedDict, Optional, Any, Callable, Union
 import asyncio
 import nest_asyncio
 from langchain_openai import ChatOpenAI
-from langchain_core.tools import Tool
+from langchain_core.tools import Tool, StructuredTool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
 from langchain.agents import AgentExecutor, create_openai_functions_agent
@@ -55,10 +55,13 @@ class CapabilityAgent:
         
         # Define tools using ProfileManager's comprehensive methods
         tools = [
-            Tool(
+            StructuredTool(
                 name="get_all_capabilities",
-                func=self._wrap_async(lambda _: self.profile_manager.get_capabilities()),
-                description="Returns a complete list of all capabilities with full details including name, category, level, experience, and examples. No arguments needed."
+                func=lambda: {"capabilities": self._wrap_async(self.profile_manager.get_capabilities)()},
+                description="Returns a complete list of all capabilities with full details including name, category, level, experience, and examples. DO NOT pass any arguments to this tool - it takes no parameters.",
+                return_direct=False,
+                args_schema=None,
+                coroutine=None,
             ),
             Tool(
                 name="get_capabilities_by_category",
@@ -76,58 +79,6 @@ Arguments:
 - level (str): One of 'Expert', 'Advanced', 'Intermediate', 'Basic'
 Example: get_capabilities_by_level('Expert')"""
             ),
-            Tool(
-                name="get_top_capabilities",
-                func=self._wrap_async(lambda limit=5: self.profile_manager.get_top_capabilities(limit)),
-                description="""Returns top capabilities (Expert/Advanced levels), sorted by expertise level. 
-Arguments:
-- limit (int, optional): Maximum number of capabilities to return. Default is 5.
-Example: get_top_capabilities(3) or get_top_capabilities()"""
-            ),
-            Tool(
-                name="search_capabilities",
-                func=self._wrap_async(lambda query: self.profile_manager.search_capabilities(query)),
-                description="""Performs semantic search across capabilities, returning relevant matches with similarity scores. 
-Arguments:
-- query (str): Search term or phrase to match against capabilities
-Example: search_capabilities('python development') or search_capabilities('team leadership')"""
-            ),
-            Tool(
-                name="match_requirements",
-                func=self._wrap_async(lambda reqs: self.profile_manager.match_requirements(reqs.split(','))),
-                description="""Matches requirements against capabilities, providing detailed matching analysis. 
-Arguments:
-- reqs (str): Comma-separated list of required skills or competencies
-Returns: Dictionary with matched skills, partial matches, missing skills, and overall match score
-Example: match_requirements('Python,AWS,Team Leadership')"""
-            ),
-            Tool(
-                name="get_expertise_distribution",
-                func=self._wrap_async(lambda _: self.profile_manager.get_expertise_distribution()),
-                description="""Returns distribution of capabilities across expertise levels (Expert, Advanced, Intermediate, Basic).
-No arguments needed. Returns a dictionary with capabilities grouped by level."""
-            ),
-            Tool(
-                name="find_related_capabilities",
-                func=self._wrap_async(self.profile_manager.find_related_capabilities),
-                description="""Finds capabilities semantically related to a given capability. 
-Arguments:
-- capability_name (str): Name of the capability to find relations for
-Returns: List of related capabilities with similarity scores
-Example: find_related_capabilities('Python') might return related programming skills"""
-            ),
-            Tool(
-                name="generate_skill_summary",
-                func=self._wrap_async(lambda format='brief': self.profile_manager.generate_skill_summary(format)),
-                description="""Generates capability summary in specified format. 
-Arguments:
-- format (str): One of:
-  * 'brief': Quick overview of top skills
-  * 'detailed': Comprehensive breakdown by category
-  * 'technical': Focus on technical skills and tools
-  * 'business': Focus on soft skills and domain knowledge
-Example: generate_skill_summary('technical') or generate_skill_summary('brief')"""
-            )
         ]
 
         # Create the agent with enhanced system prompt including strategy
@@ -141,22 +92,22 @@ You have access to comprehensive tools to explore and analyze skills, expertise 
 Core Strategy and Context:
 <strategy>                              
 {self.strategy['content']}
-</strategy>
+</strategy> 
 
-Key guidelines:
-- Use get_all_capabilities for complete overview
-- Use category/level filters for specific queries (get_capabilities_by_category, get_capabilities_by_level)
-- Use get_top_capabilities to focus on Expert/Advanced skills
-- Use search_capabilities for semantic search
-- Use match_requirements for skill gap analysis
-- Use expertise_distribution for level insights
-- Use generate_skill_summary for different perspectives (brief/detailed/technical/business)
-- Use find_related_capabilities to explore skill relationships
-- Use get_expertise_distribution for detailed level breakdown
-                              
-If you don't find specific information about a capability, clearly state that it's not documented.
+IMPORTANT RULES:
+- You MUST use at least one tool for EVERY response. If unsure which tool to use, use get_all_capabilities.
+- You are not allowed to use any other tools than the ones provided.
+- You are not allowed to use any other sources of information than the ones provided.
+- If you don't find specific information about a capability, clearly state that I don't have that capability.
+- Present my capabilities in first person, as if I am telling my story in an interview.
+- Never make assumptions about capabilities without verifying through tools.
+- Always reference the specific data retrieved from tools in your response.
+- Strictly answer only what is asked - do not provide advice or suggestions for improvement.
+- Focus on factual assessment of current capabilities only.
 
-Respond in a clear, professional manner and cite specific data from the tools."""),
+Respond in a clear, professional manner and cite specific data from the tools, if applicable based on the query.
+
+Remember: ALWAYS use at least one tool before responding, even for seemingly simple questions."""),
                 MessagesPlaceholder(variable_name="messages"),
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
             ])
