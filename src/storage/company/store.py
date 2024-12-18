@@ -4,13 +4,13 @@ from langchain_openai import OpenAIEmbeddings
 from src.utils.logger import get_logger
 from src.config.settings import config
 from ..base import VectorStore
-from .models import Startup
+from .models import Company
 import asyncio
 
 logger = get_logger(__name__)
 
-class StartupVectorStore(VectorStore):
-    """Vector store for startup data using Pinecone"""
+class CompanyVectorStore(VectorStore):
+    """Vector store for company data using Pinecone"""
 
     def __init__(self, namespace: str = "prod"):
         """Initialize Pinecone client and index"""
@@ -24,7 +24,7 @@ class StartupVectorStore(VectorStore):
         
         # Get or create index
         self.namespace = namespace
-        index_name = "startups"
+        index_name = "companies"
         existing_indexes = self.pc.list_indexes().names()
         
         if index_name not in existing_indexes:
@@ -122,20 +122,20 @@ class StartupVectorStore(VectorStore):
             logger.error(f"Error deleting item {item_id} from namespace {self.namespace}: {e}")
             return False
 
-    async def add_startup(self, startup: Startup) -> None:
-        """Add a startup to the vector store"""
+    async def add_company(self, company: Company) -> None:
+        """Add a company to the vector store"""
         try:
-            metadata = startup.to_dict()
-            logger.debug(f"Adding startup {startup.id} to namespace {self.namespace}")
+            metadata = company.to_dict()
+            logger.debug(f"Adding company {company.id} to namespace {self.namespace}")
             logger.debug(f"Metadata: {metadata}")
             
-            vector = await self.embeddings.aembed_query(startup.description)
+            vector = await self.embeddings.aembed_query(company.description)
             logger.debug(f"Generated vector of length: {len(vector)}")
             
             # Upsert to Pinecone
             upsert_response = self.index.upsert(
                 vectors=[(
-                    startup.id,
+                    company.id,
                     vector,
                     metadata
                 )],
@@ -150,65 +150,65 @@ class StartupVectorStore(VectorStore):
             max_retries = 3
             for i in range(max_retries):
                 result = self.index.fetch(
-                    ids=[startup.id],
+                    ids=[company.id],
                     namespace=self.namespace
                 )
                 logger.debug(f"Verification attempt {i+1}, result: {result}")
                 
-                if result and result['vectors'] and startup.id in result['vectors']:
-                    logger.info(f"Successfully verified startup {startup.id} in namespace {self.namespace}")
+                if result and result['vectors'] and company.id in result['vectors']:
+                    logger.info(f"Successfully verified company {company.id} in namespace {self.namespace}")
                     return
                 
                 if i < max_retries - 1:
                     await asyncio.sleep(2)
             
-            raise Exception(f"Verification failed for startup {startup.id} in namespace {self.namespace} after {max_retries} attempts")
+            raise Exception(f"Verification failed for company {company.id} in namespace {self.namespace} after {max_retries} attempts")
             
         except Exception as e:
-            logger.error(f"Error adding startup {startup.id} to namespace {self.namespace}: {e}")
+            logger.error(f"Error adding company {company.id} to namespace {self.namespace}: {e}")
             raise
 
-    async def get_startup(self, startup_id: str) -> Optional[Startup]:
-        """Get a startup by ID"""
+    async def get_company(self, company_id: str) -> Optional[Company]:
+        """Get a company by ID"""
         try:
-            logger.debug(f"Fetching startup {startup_id} from namespace {self.namespace}")
+            logger.debug(f"Fetching company {company_id} from namespace {self.namespace}")
             result = self.index.fetch(
-                ids=[startup_id],
+                ids=[company_id],
                 namespace=self.namespace
             )
             logger.debug(f"Fetch result: {result}")
             
             if result and result['vectors']:
-                vector_data = result['vectors'].get(startup_id)
+                vector_data = result['vectors'].get(company_id)
                 if vector_data and vector_data.metadata:
-                    startup_data = {
-                        'id': startup_id,
+                    company_data = {
+                        'id': company_id,
                         **vector_data.metadata
                     }
-                    logger.debug(f"Reconstructed startup data: {startup_data}")
-                    return Startup.from_dict(startup_data)
+                    logger.debug(f"Reconstructed company data: {company_data}")
+                    return Company.from_dict(company_data)
             
-            logger.warning(f"No data found for startup {startup_id} in namespace {self.namespace}")
+            logger.warning(f"No data found for company {company_id} in namespace {self.namespace}")
             return None
         except Exception as e:
-            logger.error(f"Error getting startup {startup_id} from namespace {self.namespace}: {e}")
+            logger.error(f"Error getting company {company_id} from namespace {self.namespace}: {e}")
             return None
 
-    async def update_startup(self, startup: Startup) -> bool:
-        """Update a startup's data"""
+    async def update_company(self, company: Company) -> bool:
+        """Update a company's data"""
         try:
-            metadata = startup.to_dict()
-            logger.debug(f"Updating startup {startup.id} in namespace {self.namespace}")
+            metadata = company.to_dict()
+            logger.debug(f"Updating company {company.id} in namespace {self.namespace}")
             logger.debug(f"Update metadata: {metadata}")
             
             # Get new embedding for updated description
-            vector = await self.embeddings.aembed_query(startup.description)
+            vector = await self.embeddings.aembed_query(company.description)
             logger.debug(f"Generated update vector of length: {len(vector)}")
             
             # Direct upsert to Pinecone
             upsert_response = self.index.upsert(
                 vectors=[(
-                    startup.id,
+                    company.id,
                     vector,
                     metadata
                 )],
@@ -223,29 +223,29 @@ class StartupVectorStore(VectorStore):
             max_retries = 3
             for i in range(max_retries):
                 result = self.index.fetch(
-                    ids=[startup.id],
+                    ids=[company.id],
                     namespace=self.namespace
                 )
                 logger.debug(f"Update verification attempt {i+1}, result: {result}")
                 
-                if result and result['vectors'] and startup.id in result['vectors']:
-                    vector_data = result['vectors'][startup.id]
-                    if vector_data.metadata.get('description') == startup.description:
-                        logger.info(f"Successfully verified startup update {startup.id} in namespace {self.namespace}")
+                if result and result['vectors'] and company.id in result['vectors']:
+                    vector_data = result['vectors'][company.id]
+                    if vector_data.metadata.get('description') == company.description:
+                        logger.info(f"Successfully verified company update {company.id} in namespace {self.namespace}")
                         return True
                 
                 if i < max_retries - 1:
                     logger.debug(f"Verification attempt {i+1} failed, waiting before retry...")
                     await asyncio.sleep(2)
             
-            raise Exception(f"Update verification failed for startup {startup.id} in namespace {self.namespace} after {max_retries} attempts")
+            raise Exception(f"Update verification failed for company {company.id} in namespace {self.namespace} after {max_retries} attempts")
             
         except Exception as e:
-            logger.error(f"Error updating startup {startup.id} in namespace {self.namespace}: {e}")
+            logger.error(f"Error updating company {company.id} in namespace {self.namespace}: {e}")
             return False
 
     async def find_similar(self, content: str, n_results: int = 5) -> List[Dict[str, Any]]:
-        """Find similar startups based on content"""
+        """Find similar companies based on content"""
         try:
             query_vector = await self.embeddings.aembed_query(content)
             results = self.index.query(
@@ -255,16 +255,16 @@ class StartupVectorStore(VectorStore):
                 namespace=self.namespace
             )
             
-            similar_startups = []
+            similar_companies = []
             for match in results.matches:
-                startup_data = {
+                company_data = {
                     'id': match.id,
                     'score': match.score,
                     **match.metadata
                 }
-                similar_startups.append(startup_data)
+                similar_companies.append(company_data)
             
-            return similar_startups
+            return similar_companies
         except Exception as e:
-            logger.error(f"Error finding similar startups in namespace {self.namespace}: {e}")
+            logger.error(f"Error finding similar companies in namespace {self.namespace}: {e}")
             raise

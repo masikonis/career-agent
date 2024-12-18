@@ -4,8 +4,8 @@ from typing import Optional, Dict, List
 from enum import Enum
 import json
 
-class StartupStage(Enum):
-    """Startup stages focused on early-stage opportunities"""
+class CompanyStage(Enum):
+    """Company stages focused on early-stage opportunities"""
     IDEA = "idea"                # Just an idea, pre-MVP
     PRE_SEED = "pre_seed"        # Working on MVP
     MVP = "mvp"                  # Has MVP, seeking validation
@@ -14,7 +14,7 @@ class StartupStage(Enum):
     SERIES_A = "series_a"        # Scaling up
     LATER = "later"              # Beyond Series A (less relevant)
 
-class StartupIndustry(Enum):
+class CompanyIndustry(Enum):
     """Digital-first industries where marketing drives growth"""
     EDTECH = "education"         # Direct experience
     AGENCY = "agency"            # Direct experience
@@ -25,26 +25,26 @@ class StartupIndustry(Enum):
     NON_DIGITAL = "non_digital"  # Not primarily digital or marketing-driven
 
 @dataclass
-class StartupEvaluation:
-    """Evaluation results for a startup"""
+class CompanyEvaluation:
+    """Evaluation results for a company"""
     match_score: float
     skills_match: List[str]
     notes: Optional[str] = None
     evaluated_at: datetime = field(default_factory=lambda: datetime.now())
 
 @dataclass
-class Startup:
-    """Represents a startup entity"""
+class Company:
+    """Represents a company entity"""
     id: str
     name: str
     description: str
-    industry: StartupIndustry
-    stage: StartupStage
-    evaluation: Optional[StartupEvaluation] = None
+    industry: CompanyIndustry
+    stage: CompanyStage
+    evaluation: Optional[CompanyEvaluation] = None
     added_at: datetime = field(default_factory=lambda: datetime.now())
     
     def to_dict(self) -> Dict:
-        """Convert startup to dictionary format"""
+        """Convert company to dictionary format"""
         data = {
             'id': self.id,
             'name': self.name,
@@ -61,8 +61,8 @@ class Startup:
         return data
     
     @classmethod
-    def from_dict(cls, data: Dict) -> 'Startup':
-        """Create Startup instance from dictionary"""
+    def from_dict(cls, data: Dict) -> 'Company':
+        """Create Company instance from dictionary"""
         # Deep copy to avoid modifying input
         data = data.copy()
         
@@ -76,14 +76,14 @@ class Startup:
                 # Parse evaluated_at datetime
                 if 'evaluated_at' in evaluation_dict:
                     evaluation_dict['evaluated_at'] = datetime.fromisoformat(evaluation_dict['evaluated_at'])
-                data['evaluation'] = StartupEvaluation(**evaluation_dict)
+                data['evaluation'] = CompanyEvaluation(**evaluation_dict)
         
         # Parse dates
         if 'added_at' in data:
             data['added_at'] = datetime.fromisoformat(data['added_at'])
         
         # Convert string back to enum
-        data['industry'] = StartupIndustry(data['industry'])
-        data['stage'] = StartupStage(data['stage'])
+        data['industry'] = CompanyIndustry(data['industry'])
+        data['stage'] = CompanyStage(data['stage'])
         
         return cls(**data)
