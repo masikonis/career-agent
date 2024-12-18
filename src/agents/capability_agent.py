@@ -44,8 +44,10 @@ class CapabilityAgent:
         self.strategy = asyncio.run(self.profile_manager.get_strategy())
         logger.info(f"Strategy loaded for context using model: {model}")
         
+        # Initialize graph and history
         self.graph = self._build_graph()
-        logger.info("CapabilityAgent initialized with graph built.")
+        self.message_history = []
+        logger.info("CapabilityAgent initialized with graph built and empty message history.")
         
     def _build_graph(self):
         logger.info("Building the capability agent graph.")
@@ -215,34 +217,35 @@ Respond in a clear, professional manner and cite specific data from the tools.""
 
     @traceable
     async def chat(self, message: str, timeout: Optional[float] = 30.0) -> str:
-        """
-        Process a message through the graph and return response.
-        
-        Args:
-            message: The user's input message
-            
-        Returns:
-            str: The agent's response
-            
-        Raises:
-            Exception: If there's an error processing the message
-        """
+        """Process a message through the graph and return response."""
         logger.info(f"Received message: {message}")
         try:
+            # Include message history in the graph invocation
+            if isinstance(message, str):
+                self.message_history.append(("user", message))
+            else:
+                self.message_history.append(("user", message.content))
+
             response = await asyncio.wait_for(
-                self.graph.ainvoke({"messages": [("user", message)]}),
+                self.graph.ainvoke({"messages": self.message_history}),
                 timeout=timeout
             )
-            # Extract the content from the last message
+            
+            # Extract and store the response
             last_message = response["messages"][-1]
-            logger.info(f"Response generated: {last_message}")
-            # Check if last_message is a structured object with a 'content' attribute
             if hasattr(last_message, 'content'):
-                return last_message.content
+                response_content = last_message.content
             elif isinstance(last_message, tuple):
-                return last_message[1]
+                response_content = last_message[1]
             else:
-                return str(last_message)
+                response_content = str(last_message)
+                
+            # Add response to history
+            self.message_history.append(("assistant", response_content))
+            logger.info(f"Response generated and added to history: {response_content}")
+            
+            return response_content
+            
         except asyncio.TimeoutError:
             logger.error("Operation timed out")
             return "Operation timed out. Please try again."
@@ -250,9 +253,16 @@ Respond in a clear, professional manner and cite specific data from the tools.""
             logger.error(f"Error processing message: {str(e)}")
             return f"Error processing message: {str(e)}"
 
+    async def clear_history(self):
+        """Clear the conversation history"""
+        self.message_history = []
+        logger.info("Conversation history cleared")
+        return True
+
     async def shutdown(self):
         """Gracefully shutdown the agent and cleanup resources"""
         try:
+            await self.clear_history()  # Use clear_history instead of direct assignment
             # Cleanup any active sessions
             if hasattr(self.llm, 'aclose'):
                 await self.llm.aclose()
