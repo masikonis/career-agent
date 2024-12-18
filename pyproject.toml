@@ -13,12 +13,12 @@ langchain-core = "^0.3.25"
 langgraph = "^0.2.59"
 python-dotenv = "^1.0.0"
 zenrows = "^1.4.0"
-chromadb = "^0.5.23"
 langchain-openai = "^0.2.12"
 langchain-community = "^0.3.12"
 notion-client = "^2.2.1"
 nest-asyncio = "^1.6.0"
 langsmith = "^0.2.3"
+pinecone = "^5.4.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
