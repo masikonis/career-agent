@@ -35,13 +35,19 @@ async def store():
 async def test_basic_operations(store):
     """Test basic company operations: add, get, find similar"""
     
-    # 1. Create test company
+    # 1. Create test company with initial evaluation
+    initial_evaluation = CompanyEvaluation(
+        match_score=85.5,
+        skills_match=["Python", "Machine Learning"],
+        notes="Strong alignment with current skills."
+    )
     saas_company = Company(
         id="test-ai-1",
         name="AI SaaS",
         description="A SaaS platform for AI-powered analytics",
         industry=CompanyIndustry.SAAS,
-        stage=CompanyStage.MVP
+        stage=CompanyStage.MVP,
+        evaluations=[initial_evaluation]
     )
     logger.debug(f"Created test company: {saas_company.to_dict()}")
 
@@ -55,85 +61,67 @@ async def test_basic_operations(store):
     assert retrieved_saas.name == "AI SaaS"
     assert retrieved_saas.industry == CompanyIndustry.SAAS
     assert retrieved_saas.stage == CompanyStage.MVP
+    assert len(retrieved_saas.evaluations) == 1
+    assert retrieved_saas.evaluations[0].match_score == 85.5
 
-@pytest.mark.asyncio
-async def test_multiple_startups(store):
-    """Test handling multiple startups"""
-    
-    # 1. Create test startups
-    startups = [
-        Company(
-            id="test-ai-1",
-            name="AI SaaS",
-            description="A SaaS platform for AI-powered analytics",
-            industry=CompanyIndustry.SAAS,
-            stage=CompanyStage.MVP
-        ),
-        Company(
-            id="test-edu-1",
-            name="EdTech Platform",
-            description="An educational technology platform for online learning",
-            industry=CompanyIndustry.EDTECH,
-            stage=CompanyStage.SEED
-        )
-    ]
-
-    # 2. Add startups to store with verification
-    for startup in startups:
-        await store.add_company(startup)
-        await asyncio.sleep(2)  # Wait between adds
-        
-        # Verify immediately after add
-        retrieved = await store.get_company(startup.id)
-        assert retrieved is not None, f"Failed to verify startup {startup.id} after add"
-        assert retrieved.name == startup.name
-        assert retrieved.description == startup.description
-
-@pytest.mark.asyncio
-async def test_update_startup(store):
-    """Test updating startup information"""
-    logger.info("Starting update startup test")
-    
-    # 1. Create and add startup
-    startup = Company(
-        id="test-ai-1",
-        name="AI SaaS",
-        description="Initial description",
-        industry=CompanyIndustry.SAAS,
-        stage=CompanyStage.MVP
+    # 4. Add a new evaluation
+    new_evaluation = CompanyEvaluation(
+        match_score=90.0,
+        skills_match=["Python", "Deep Learning"],
+        notes="Skills have improved over the year."
     )
-    logger.debug(f"Created initial startup: {startup.to_dict()}")
+    retrieved_saas.add_evaluation(new_evaluation)
+    await store.update_company(retrieved_saas)
+    logger.info("Added a new evaluation to the company")
+
+    # 5. Retrieve and verify the new evaluation
+    updated_saas = await store.get_company("test-ai-1")
+    assert updated_saas is not None
+    assert len(updated_saas.evaluations) == 2
+    assert updated_saas.evaluations[1].match_score == 90.0
+
+@pytest.mark.asyncio
+async def test_multiple_evaluations(store):
+    """Test adding multiple evaluations over time"""
     
-    await store.add_company(startup)
-    await asyncio.sleep(2)
+    # 1. Create test company
+    company = Company(
+        id="test-edu-1",
+        name="EdTech Platform",
+        description="An educational technology platform for online learning",
+        industry=CompanyIndustry.EDTECH,
+        stage=CompanyStage.SEED
+    )
+    logger.debug(f"Created test company: {company.to_dict()}")
 
-    # Verify initial state
-    initial = await store.get_company(startup.id)
-    logger.debug(f"Initial state verification: {initial.to_dict() if initial else None}")
-    assert initial is not None
-    assert initial.description == "Initial description"
+    # 2. Add company to store without evaluations
+    await store.add_company(company)
+    logger.info("Added company to store without evaluations")
 
-    # 2. Update startup
-    startup.description = "Updated description"
-    logger.debug(f"Updating startup with new data: {startup.to_dict()}")
-    success = await store.update_company(startup)
-    assert success is True
-    await asyncio.sleep(2)
+    # 3. Add first evaluation
+    first_evaluation = CompanyEvaluation(
+        match_score=75.0,
+        skills_match=["Educational Content", "User Engagement"],
+        notes="Initial evaluation."
+    )
+    company.add_evaluation(first_evaluation)
+    await store.update_company(company)
+    logger.info("Added first evaluation")
 
-    # 3. Verify update with retries
-    max_retries = 3
-    for i in range(max_retries):
-        updated = await store.get_company(startup.id)
-        logger.debug(f"Update verification attempt {i+1}, got: {updated.to_dict() if updated else None}")
-        
-        if updated and updated.description == "Updated description":
-            logger.info("Update verification successful")
-            break
-            
-        logger.debug(f"Attempt {i+1} failed, waiting before retry...")
-        await asyncio.sleep(2)
-    else:
-        assert False, "Failed to verify update after multiple retries"
+    # 4. Add second evaluation after some time
+    await asyncio.sleep(1)  # Simulate time passing
+    second_evaluation = CompanyEvaluation(
+        match_score=80.0,
+        skills_match=["Content Development", "Analytics"],
+        notes="Skills have been updated."
+    )
+    company.add_evaluation(second_evaluation)
+    await store.update_company(company)
+    logger.info("Added second evaluation")
 
-    assert updated is not None
-    assert updated.description == "Updated description"
+    # 5. Retrieve and verify both evaluations
+    retrieved_company = await store.get_company("test-edu-1")
+    assert retrieved_company is not None
+    assert len(retrieved_company.evaluations) == 2
+    assert retrieved_company.evaluations[0].match_score == 75.0
+    assert retrieved_company.evaluations[1].match_score == 80.0

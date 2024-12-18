@@ -40,7 +40,7 @@ class Company:
     description: str
     industry: CompanyIndustry
     stage: CompanyStage
-    evaluation: Optional[CompanyEvaluation] = None
+    evaluations: List[CompanyEvaluation] = field(default_factory=list)
     added_at: datetime = field(default_factory=lambda: datetime.now())
     
     def to_dict(self) -> Dict:
@@ -51,13 +51,17 @@ class Company:
             'description': self.description,
             'industry': self.industry.value,
             'stage': self.stage.value,
-            'added_at': self.added_at.isoformat()
+            'added_at': self.added_at.isoformat(),
+            'evaluations': json.dumps([
+                {
+                    'match_score': eval.match_score,
+                    'skills_match': eval.skills_match,
+                    'notes': eval.notes,
+                    'evaluated_at': eval.evaluated_at.isoformat()
+                }
+                for eval in self.evaluations
+            ])
         }
-        
-        # Only add evaluation if it exists
-        if self.evaluation:
-            data['evaluation'] = json.dumps(self.evaluation.__dict__)
-            
         return data
     
     @classmethod
@@ -66,17 +70,17 @@ class Company:
         # Deep copy to avoid modifying input
         data = data.copy()
         
-        # Parse evaluation if it exists
-        if 'evaluation' in data and data['evaluation']:
-            if isinstance(data['evaluation'], str):
-                evaluation_dict = json.loads(data['evaluation'])
-                # Convert comma-separated skills back to list
-                if 'skills_match' in evaluation_dict and isinstance(evaluation_dict['skills_match'], str):
-                    evaluation_dict['skills_match'] = evaluation_dict['skills_match'].split(',')
-                # Parse evaluated_at datetime
-                if 'evaluated_at' in evaluation_dict:
-                    evaluation_dict['evaluated_at'] = datetime.fromisoformat(evaluation_dict['evaluated_at'])
-                data['evaluation'] = CompanyEvaluation(**evaluation_dict)
+        # Parse evaluations if they exist
+        if 'evaluations' in data and data['evaluations']:
+            evaluations = json.loads(data['evaluations'])
+            for eval_data in evaluations:
+                if 'skills_match' in eval_data and isinstance(eval_data['skills_match'], list):
+                    eval_data['skills_match'] = eval_data['skills_match']
+                if 'evaluated_at' in eval_data:
+                    eval_data['evaluated_at'] = datetime.fromisoformat(eval_data['evaluated_at'])
+            data['evaluations'] = [CompanyEvaluation(**eval_data) for eval_data in evaluations]
+        else:
+            data['evaluations'] = []
         
         # Parse dates
         if 'added_at' in data:
@@ -87,3 +91,7 @@ class Company:
         data['stage'] = CompanyStage(data['stage'])
         
         return cls(**data)
+    
+    def add_evaluation(self, evaluation: CompanyEvaluation) -> None:
+        """Add a new evaluation to the company"""
+        self.evaluations.append(evaluation)

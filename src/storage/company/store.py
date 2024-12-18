@@ -4,7 +4,7 @@ from langchain_openai import OpenAIEmbeddings
 from src.utils.logger import get_logger
 from src.config.settings import config
 from ..base import VectorStore
-from .models import Company
+from .models import Company, CompanyEvaluation
 import asyncio
 
 logger = get_logger(__name__)
