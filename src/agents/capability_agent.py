@@ -1,22 +1,16 @@
-from typing import Annotated, TypedDict, Optional, Any, Callable, Union
+from typing import Optional, Any, Callable
 import asyncio
-import nest_asyncio
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import Tool, StructuredTool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain.agents import AgentExecutor, create_openai_functions_agent
-from langgraph.graph import StateGraph, END, MessagesState
-from langgraph.graph.message import add_messages
+from langgraph.graph import StateGraph, MessagesState
 from src.profile.manager import ProfileManager
 from src.config.settings import config
 from langsmith import traceable
 from src.utils.logger import get_logger
 
-# Enable nested event loops
-nest_asyncio.apply()
-
-# Configure logging
 logger = get_logger(__name__)
 
 class CapabilityAgent:
@@ -28,11 +22,9 @@ class CapabilityAgent:
         
         self.profile_manager = profile_manager
         
-        # Validate model name if provided
         if model_name and model_name not in config['LLM_MODELS'].values():
             raise ValueError(f"Invalid model_name. Must be one of: {list(config['LLM_MODELS'].values())}")
         
-        # Use provided model name or default to basic
         model = model_name or config['LLM_MODELS']['basic']
         self.llm = llm or ChatOpenAI(
             temperature=0,
@@ -40,11 +32,9 @@ class CapabilityAgent:
             streaming=True
         )
         
-        # Get strategy during initialization
         self.strategy = asyncio.run(self.profile_manager.get_strategy())
         logger.info(f"Strategy loaded for context using model: {model}")
         
-        # Initialize graph and history
         self.graph = self._build_graph()
         self.message_history = []
         logger.info("CapabilityAgent initialized with graph built and empty message history.")
@@ -139,7 +129,6 @@ Remember: ALWAYS use at least one tool before responding, even for seemingly sim
                 
             return {"messages": messages}
             
-        # Add nodes and edges
         graph.add_node("chatbot", chatbot)
         graph.set_entry_point("chatbot")
         
@@ -209,16 +198,3 @@ Remember: ALWAYS use at least one tool before responding, even for seemingly sim
         self.message_history = []
         logger.info("Conversation history cleared")
         return True
-
-    async def shutdown(self):
-        """Gracefully shutdown the agent and cleanup resources"""
-        try:
-            await self.clear_history()  # Use clear_history instead of direct assignment
-            # Cleanup any active sessions
-            if hasattr(self.llm, 'aclose'):
-                await self.llm.aclose()
-            # Cleanup profile manager resources
-            await self.profile_manager.cleanup()
-            logger.info("CapabilityAgent shutdown completed")
-        except Exception as e:
-            logger.error(f"Error during shutdown: {str(e)}")

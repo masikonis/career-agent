@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage
 import random
 
 @pytest.fixture
-def capability_agent(model_name=config['LLM_MODELS']['testing']):
+def capability_agent(model_name=config['LLM_MODELS']['basic']):
     """Create a CapabilityAgent instance for testing"""
     notion_client = NotionKnowledge(config['NOTION_API_KEY'])
     source = NotionProfileSource(notion_client)

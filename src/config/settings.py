@@ -4,7 +4,6 @@ from typing import Dict
 
 # Add model configurations
 LLM_MODELS = {
-    'testing': 'gpt-4o-mini',
     'basic': 'gpt-4o-mini',
     'advanced': 'gpt-4o',
     'reasoning': 'o1-preview',
