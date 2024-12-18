@@ -23,7 +23,14 @@ class CapabilityAgent:
     """Agent that understands and can discuss capabilities using a graph-based approach"""
     
     def __init__(self, profile_manager: ProfileManager, llm=None, model_name=None):
+        if not isinstance(profile_manager, ProfileManager):
+            raise ValueError("profile_manager must be an instance of ProfileManager")
+        
         self.profile_manager = profile_manager
+        
+        # Validate model name if provided
+        if model_name and model_name not in config['LLM_MODELS'].values():
+            raise ValueError(f"Invalid model_name. Must be one of: {list(config['LLM_MODELS'].values())}")
         
         # Use provided model name or default to basic
         model = model_name or config['LLM_MODELS']['basic']
@@ -195,7 +202,12 @@ Respond in a clear, professional manner and cite specific data from the tools.""
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
             try:
-                return loop.run_until_complete(coro(*args, **kwargs))
+                return loop.run_until_complete(
+                    asyncio.wait_for(coro(*args, **kwargs), timeout=30.0)
+                )
+            except asyncio.TimeoutError:
+                logger.error("Operation timed out")
+                return "Operation timed out. Please try again."
             except Exception as e:
                 logger.error(f"Tool execution error: {str(e)}")
                 return f"Error executing tool: {str(e)}"
@@ -231,6 +243,21 @@ Respond in a clear, professional manner and cite specific data from the tools.""
                 return last_message[1]
             else:
                 return str(last_message)
+        except asyncio.TimeoutError:
+            logger.error("Operation timed out")
+            return "Operation timed out. Please try again."
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
             return f"Error processing message: {str(e)}"
+
+    async def shutdown(self):
+        """Gracefully shutdown the agent and cleanup resources"""
+        try:
+            # Cleanup any active sessions
+            if hasattr(self.llm, 'aclose'):
+                await self.llm.aclose()
+            # Cleanup profile manager resources
+            await self.profile_manager.cleanup()
+            logger.info("CapabilityAgent shutdown completed")
+        except Exception as e:
+            logger.error(f"Error during shutdown: {str(e)}")
