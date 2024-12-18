@@ -22,17 +22,20 @@ logger = get_logger(__name__)
 class CapabilityAgent:
     """Agent that understands and can discuss capabilities using a graph-based approach"""
     
-    def __init__(self, profile_manager: ProfileManager, llm=None):
+    def __init__(self, profile_manager: ProfileManager, llm=None, model_name=None):
         self.profile_manager = profile_manager
+        
+        # Use provided model name or default to basic
+        model = model_name or config['LLM_MODELS']['basic']
         self.llm = llm or ChatOpenAI(
             temperature=0,
-            model=config['LLM_MODELS']['basic'],
+            model=model,
             streaming=True
         )
         
         # Get strategy during initialization
         self.strategy = asyncio.run(self.profile_manager.get_strategy())
-        logger.info("Strategy loaded for context")
+        logger.info(f"Strategy loaded for context using model: {model}")
         
         self.graph = self._build_graph()
         logger.info("CapabilityAgent initialized with graph built.")

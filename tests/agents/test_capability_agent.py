@@ -6,12 +6,16 @@ from src.services.knowledge.notion import NotionKnowledge
 from src.config.settings import config
 
 @pytest.fixture
-def capability_agent():
-    """Create a CapabilityAgent instance for testing"""
+def capability_agent(model_name=config['LLM_MODELS']['basic']):
+    """Create a CapabilityAgent instance for testing
+    
+    Args:
+        model_name: Model name from config['LLM_MODELS']. Defaults to 'basic'.
+    """
     notion_client = NotionKnowledge(config['NOTION_API_KEY'])
     source = NotionProfileSource(notion_client)
     profile_manager = ProfileManager(source)
-    return CapabilityAgent(profile_manager)
+    return CapabilityAgent(profile_manager, model_name=model_name)
 
 @pytest.mark.asyncio
 async def test_basic_query(capability_agent):
