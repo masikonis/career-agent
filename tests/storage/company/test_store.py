@@ -15,11 +15,12 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+
 @pytest_asyncio.fixture
 async def store():
     """Create a test store instance"""
     store = CompanyVectorStore(namespace="test")
-    
+
     # Clean up before test
     try:
         await store.delete_item("test-ai-1")
@@ -27,7 +28,7 @@ async def store():
         logger.info("Cleaned up any existing test data")
     except Exception as e:
         logger.warning(f"Pre-test cleanup error (can be ignored): {e}")
-    
+
     yield store
 
     # Clean up after test
@@ -38,15 +39,16 @@ async def store():
     except Exception as e:
         logger.error(f"Error cleaning up test data: {e}")
 
+
 @pytest.mark.asyncio
 async def test_basic_operations(store):
     """Test basic company operations: add, get, find similar"""
-    
+
     # 1. Create test company with initial evaluation
     initial_evaluation = CompanyEvaluation(
         match_score=85.5,
         skills_match=["Python", "Machine Learning"],
-        notes="Strong alignment with current skills."
+        notes="Strong alignment with current skills.",
     )
     saas_company = Company(
         id="test-ai-1",
@@ -54,7 +56,7 @@ async def test_basic_operations(store):
         description="A SaaS platform for AI-powered analytics",
         industry=CompanyIndustry.SAAS,
         stage=CompanyStage.MVP,
-        evaluations=[initial_evaluation]
+        evaluations=[initial_evaluation],
     )
     logger.debug(f"Created test company: {saas_company.to_dict()}")
 
@@ -75,7 +77,7 @@ async def test_basic_operations(store):
     new_evaluation = CompanyEvaluation(
         match_score=90.0,
         skills_match=["Python", "Deep Learning"],
-        notes="Skills have improved over the year."
+        notes="Skills have improved over the year.",
     )
     retrieved_saas.add_evaluation(new_evaluation)
     await store.update_company(retrieved_saas)
@@ -87,17 +89,18 @@ async def test_basic_operations(store):
     assert len(updated_saas.evaluations) == 2
     assert updated_saas.evaluations[1].match_score == 90.0
 
+
 @pytest.mark.asyncio
 async def test_multiple_evaluations(store):
     """Test adding multiple evaluations over time"""
-    
+
     # 1. Create test company
     company = Company(
         id="test-edu-1",
         name="EdTech Platform",
         description="An educational technology platform for online learning",
         industry=CompanyIndustry.EDTECH,
-        stage=CompanyStage.SEED
+        stage=CompanyStage.SEED,
     )
     logger.debug(f"Created test company: {company.to_dict()}")
 
@@ -109,7 +112,7 @@ async def test_multiple_evaluations(store):
     first_evaluation = CompanyEvaluation(
         match_score=75.0,
         skills_match=["Educational Content", "User Engagement"],
-        notes="Initial evaluation."
+        notes="Initial evaluation.",
     )
     company.add_evaluation(first_evaluation)
     await store.update_company(company)
@@ -120,7 +123,7 @@ async def test_multiple_evaluations(store):
     second_evaluation = CompanyEvaluation(
         match_score=80.0,
         skills_match=["Content Development", "Analytics"],
-        notes="Skills have been updated."
+        notes="Skills have been updated.",
     )
     company.add_evaluation(second_evaluation)
     await store.update_company(company)

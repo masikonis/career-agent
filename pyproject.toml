@@ -27,6 +27,7 @@ pytest = "^8.3.4"
 pytest-asyncio = "^0.25.0"
 pytest-mock = "^3.14.0"
 isort = "^5.13.2"
+black = "^24.10.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -45,3 +46,23 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 line_length = 88
+
+[tool.black]
+line-length = 88
+target-version = ['py312']  # Adjust this to your Python version
+include = '\.pyi?$'
+extend-exclude = '''
+# A regex preceded with ^/ will apply only to files and directories
+# in the root of the project.
+/(
+    \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+)/
+'''

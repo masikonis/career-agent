@@ -13,27 +13,31 @@ from src.services.knowledge.notion import NotionKnowledge
 
 
 @pytest.fixture
-def capability_agent(model_name=config['LLM_MODELS']['basic']):
+def capability_agent(model_name=config["LLM_MODELS"]["basic"]):
     """Create a CapabilityAgent instance for testing"""
-    notion_client = NotionKnowledge(config['NOTION_API_KEY'])
+    notion_client = NotionKnowledge(config["NOTION_API_KEY"])
     source = NotionProfileSource(notion_client)
     profile_manager = ProfileManager(source)
     return CapabilityAgent(profile_manager, model_name=model_name)
+
 
 @pytest.mark.asyncio
 async def test_initialization_validation():
     """Test initialization validation"""
     # Test invalid profile manager
-    with pytest.raises(ValueError, match="profile_manager must be an instance of ProfileManager"):
+    with pytest.raises(
+        ValueError, match="profile_manager must be an instance of ProfileManager"
+    ):
         CapabilityAgent(None)
-    
+
     # Test invalid model name
-    notion_client = NotionKnowledge(config['NOTION_API_KEY'])
+    notion_client = NotionKnowledge(config["NOTION_API_KEY"])
     source = NotionProfileSource(notion_client)
     profile_manager = ProfileManager(source)
-    
+
     with pytest.raises(ValueError, match="Invalid model_name"):
         CapabilityAgent(profile_manager, model_name="invalid_model")
+
 
 @pytest.mark.asyncio
 async def test_basic_query(capability_agent):
@@ -44,58 +48,67 @@ async def test_basic_query(capability_agent):
     assert len(response) > 0
     print(f"\nResponse to technical skills query: {response}")
 
+
 @pytest.mark.asyncio
 async def test_conversation_context(capability_agent):
     """Test that the agent maintains conversation context"""
     # Initial query
     response1 = await capability_agent.chat("What are your top technical skills?")
     assert response1 is not None
-    
+
     # Follow-up questions
     response2 = await capability_agent.chat("Can you elaborate on the first one?")
     assert response2 is not None
     assert len(response2) > 0
-    
+
     response3 = await capability_agent.chat("How does it relate to your other skills?")
     assert response3 is not None
     assert len(response3) > 0
-    
-    print(f"\nConversation flow responses:\n1: {response1}\n2: {response2}\n3: {response3}")
+
+    print(
+        f"\nConversation flow responses:\n1: {response1}\n2: {response2}\n3: {response3}"
+    )
+
 
 @pytest.mark.asyncio
 async def test_category_queries(capability_agent):
     """Test querying different capability categories"""
-    categories = ['Hard Skills', 'Soft Skills', 'Domain Knowledge', 'Tools/Platforms']
+    categories = ["Hard Skills", "Soft Skills", "Domain Knowledge", "Tools/Platforms"]
     category = random.choice(categories)
-    
+
     response = await capability_agent.chat(f"Tell me about your {category}")
     assert response is not None
     assert isinstance(response, str)
     assert len(response) > 0
     print(f"\nResponse for {category}: {response}")
 
+
 @pytest.mark.asyncio
 async def test_expertise_levels(capability_agent):
     """Test querying different expertise levels"""
-    levels = ['Expert', 'Advanced', 'Intermediate', 'Basic']
+    levels = ["Expert", "Advanced", "Intermediate", "Basic"]
     level = random.choice(levels)
-    
+
     response = await capability_agent.chat(f"What skills do you have at {level} level?")
     assert response is not None
     assert isinstance(response, str)
     assert len(response) > 0
     print(f"\nResponse for {level} level: {response}")
 
+
 @pytest.mark.asyncio
 async def test_skill_search(capability_agent):
     """Test semantic skill search"""
-    queries = ['WordPress development']
+    queries = ["WordPress development"]
     for query in queries:
-        response = await capability_agent.chat(f"Tell me about your experience with {query}")
+        response = await capability_agent.chat(
+            f"Tell me about your experience with {query}"
+        )
         assert response is not None
         assert isinstance(response, str)
         assert len(response) > 0
         print(f"\nResponse for {query} search: {response}")
+
 
 @pytest.mark.asyncio
 async def test_requirements_matching(capability_agent):
@@ -108,12 +121,13 @@ async def test_requirements_matching(capability_agent):
     assert len(response) > 0
     print(f"\nResponse to requirements matching: {response}")
 
+
 @pytest.mark.asyncio
 async def test_complex_queries(capability_agent):
     """Test handling of complex, multi-part queries"""
     queries = [
         "What are your top 3 technical skills and how do they relate to each other?",
-        "Compare your software development skills with your leadership abilities"
+        "Compare your software development skills with your leadership abilities",
     ]
     query = random.choice(queries)
     response = await capability_agent.chat(query)
@@ -121,6 +135,7 @@ async def test_complex_queries(capability_agent):
     assert isinstance(response, str)
     assert len(response) > 0
     print(f"\nResponse to complex query: {response}")
+
 
 @pytest.mark.asyncio
 async def test_real_world_job_matching(capability_agent):
@@ -142,7 +157,9 @@ async def test_real_world_job_matching(capability_agent):
     - Strong written communication skills
     - Experience with remote team collaboration
     """
-    response = await capability_agent.chat(f"How well do I match this job posting (1 through 10)? Please analyze in detail: <job_posting>{job_posting}</job_posting>")
+    response = await capability_agent.chat(
+        f"How well do I match this job posting (1 through 10)? Please analyze in detail: <job_posting>{job_posting}</job_posting>"
+    )
     assert response is not None
     assert isinstance(response, str)
     print(f"\nJob matching analysis:\n{response}")

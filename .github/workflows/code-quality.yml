@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}  # Checkout the PR branch
+          ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
@@ -27,12 +27,15 @@ jobs:
           version: 1.7.1
 
       - name: Install dependencies
-        run: poetry run poetry install --no-interaction --no-root --only dev
+        run: poetry install --no-interaction --no-root --only dev
 
       - name: Fix Import Sorting
         run: poetry run isort .
 
+      - name: Format with Black
+        run: poetry run black .
+
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "style: sort imports with isort"
+          commit_message: "style: format code with isort and black"
           file_pattern: "*.py"
