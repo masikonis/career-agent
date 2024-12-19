@@ -9,10 +9,7 @@ T = TypeVar("T")
 
 
 class BaseStorage(ABC, Generic[T]):
-    """
-    Base interface for all storage operations.
-    Handles basic CRUD operations for any entity type.
-    """
+    """Base interface for all storage operations"""
 
     @abstractmethod
     async def create(self, entity: T) -> EntityID:
@@ -36,10 +33,7 @@ class BaseStorage(ABC, Generic[T]):
 
 
 class SearchIndex(ABC, Generic[T]):
-    """
-    Base interface for search operations.
-    Handles semantic search and indexing.
-    """
+    """Base interface for search operations"""
 
     @abstractmethod
     async def index(self, entity_id: EntityID, entity: T, metadata: Metadata) -> bool:
