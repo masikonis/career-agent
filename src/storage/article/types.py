@@ -1,6 +1,8 @@
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, ClassVar, Dict, List, Optional
+
+from bson import ObjectId
 
 from ..base.types import EntityID
 from ..generic.types import SearchableEntity
@@ -17,7 +19,7 @@ class Article(SearchableEntity):
     published_at: datetime
     tags: List[str] = field(default_factory=list)
     url: Optional[str] = None
-    id: Optional[EntityID] = None
+    id: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 
@@ -32,23 +34,24 @@ class Article(SearchableEntity):
     }
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert article to dictionary"""
-        return {
-            "id": str(self.id) if self.id else None,
-            "title": self.title,
-            "content": self.content,
-            "author": self.author,
-            "source": self.source,
-            "published_at": self.published_at.isoformat(),
-            "tags": self.tags,
-            "url": self.url,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
-        }
+        """Convert to dictionary for MongoDB storage"""
+        data = asdict(self)
+
+        # Convert id back to _id for MongoDB if it exists
+        if data["id"] is not None:
+            data["_id"] = ObjectId(data.pop("id"))
+        else:
+            del data["id"]  # Remove id if None
+
+        return data
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Article":
         """Create article from dictionary"""
+        # Convert MongoDB _id to id
+        if "_id" in data:
+            data["id"] = str(data.pop("_id"))
+
         # Convert string dates back to datetime
         for date_field in ["published_at", "created_at", "updated_at"]:
             if date_field in data and isinstance(data[date_field], str):
@@ -98,11 +101,11 @@ class Article(SearchableEntity):
 class ArticleFilters:
     """Filters for article search"""
 
-    author: Optional[str] = None
-    source: Optional[str] = None
-    tags: Optional[List[str]] = None
+    author: Optional[List[str]] = None
+    source: Optional[List[str]] = None
     published_after: Optional[datetime] = None
     published_before: Optional[datetime] = None
+    tags: Optional[List[str]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert filters to dictionary format"""

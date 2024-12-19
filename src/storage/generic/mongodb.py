@@ -73,7 +73,7 @@ class MongoDBStorage(GenericStorage[T]):
         """Create a new entity"""
         try:
             doc = entity.to_dict()
-            result = self.collection.insert_one(doc)
+            result = await self.collection.insert_one(doc)
             return str(result.inserted_id)
         except Exception as e:
             self.logger.error(f"Failed to create entity: {str(e)}")
@@ -100,7 +100,7 @@ class MongoDBStorage(GenericStorage[T]):
             if "id" in doc:
                 del doc["id"]
 
-            result = self.collection.update_one(
+            result = await self.collection.update_one(
                 {"_id": ObjectId(entity_id)}, {"$set": doc}
             )
             return result.modified_count > 0
@@ -111,7 +111,7 @@ class MongoDBStorage(GenericStorage[T]):
     async def delete(self, entity_id: EntityID) -> bool:
         """Delete an entity"""
         try:
-            result = self.collection.delete_one({"_id": ObjectId(entity_id)})
+            result = await self.collection.delete_one({"_id": ObjectId(entity_id)})
             return result.deleted_count > 0
         except Exception as e:
             self.logger.error(f"Failed to delete entity: {str(e)}")

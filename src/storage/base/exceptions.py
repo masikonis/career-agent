@@ -2,23 +2,29 @@ from typing import Optional
 
 
 class StorageError(Exception):
-    """Base exception for all storage-related errors"""
+    """Base exception for storage operations"""
 
-    def __init__(self, message: str, details: Optional[str] = None):
-        self.message = message
-        self.details = details
-        super().__init__(message if not details else f"{message}: {details}")
+    pass
 
 
 class EntityNotFoundError(StorageError):
-    """Raised when an entity cannot be found in storage"""
+    """Raised when an entity is not found"""
 
     def __init__(self, entity_type: str, entity_id: str):
-        self.entity_type = entity_type
-        self.entity_id = entity_id
-        super().__init__(
-            f"Entity of type '{entity_type}' with ID '{entity_id}' not found"
-        )
+        self.message = f"{entity_type} with id {entity_id} not found"
+        super().__init__(self.message)
+
+
+class SearchError(StorageError):
+    """Raised when search operations fail"""
+
+    pass
+
+
+class SearchIndexError(StorageError):
+    """Raised when search index operations fail"""
+
+    pass
 
 
 class StorageConnectionError(StorageError):
@@ -49,18 +55,6 @@ class StorageOperationError(StorageError):
         if entity_id:
             message += f" (ID: {entity_id})"
         super().__init__(message, details)
-
-
-class SearchIndexError(StorageError):
-    """Raised when search indexing operations fail"""
-
-    def __init__(self, index_name: str, operation: str, details: str):
-        self.index_name = index_name
-        self.operation = operation
-        super().__init__(
-            f"Search index operation '{operation}' failed on index '{index_name}'",
-            details,
-        )
 
 
 class StorageSyncError(StorageError):

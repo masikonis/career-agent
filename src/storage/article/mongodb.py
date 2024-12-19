@@ -61,23 +61,14 @@ class ArticleMongoDBStorage(MongoDBStorage[Article], ArticleStorage):
     async def find_by_date_range(
         self, start_date: datetime, end_date: datetime
     ) -> List[Article]:
-        """Find articles within a date range"""
+        """Find articles within date range"""
         try:
-            cursor = self.collection.find(
-                {
-                    self.FIELD_PUBLISHED_AT: {
-                        MongoOperators.GTE: start_date,
-                        MongoOperators.LTE: end_date,
-                    }
-                }
-            ).sort(self.FIELD_PUBLISHED_AT, DESCENDING)
-
+            query = {"published_at": {"$gte": start_date, "$lte": end_date}}
+            cursor = self.collection.find(query)
             articles = []
             async for doc in cursor:
                 articles.append(Article.from_dict(doc))
-
             return articles
-
         except Exception as e:
             self.logger.error(f"Failed to find articles by date range: {str(e)}")
             raise StorageError(f"Failed to find articles by date range: {str(e)}")
@@ -85,23 +76,14 @@ class ArticleMongoDBStorage(MongoDBStorage[Article], ArticleStorage):
     async def add_tags(self, article_id: EntityID, tags: List[str]) -> bool:
         """Add tags to an article"""
         try:
-            # Add tags without duplicates
             result = await self.collection.update_one(
-                {"_id": ObjectId(article_id)},
-                {
-                    MongoOperators.ADD_TO_SET: {
-                        self.FIELD_TAGS: {MongoOperators.EACH: tags}
-                    }
-                },
+                {"_id": ObjectId(article_id)}, {"$addToSet": {"tags": {"$each": tags}}}
             )
-
-            if result.matched_count == 0:
-                self.logger.warning(f"Article {article_id} not found")
-                return False
-
-            self.logger.info(f"Added tags to article {article_id}: {tags}")
-            return True
-
+            if result.modified_count > 0:
+                self.logger.info(f"Added tags to article {article_id}: {tags}")
+                return True
+            self.logger.warning(f"Article {article_id} not found")
+            return False
         except Exception as e:
             self.logger.error(f"Failed to add tags: {str(e)}")
             raise StorageError(f"Failed to add tags: {str(e)}")
@@ -110,17 +92,13 @@ class ArticleMongoDBStorage(MongoDBStorage[Article], ArticleStorage):
         """Remove tags from an article"""
         try:
             result = await self.collection.update_one(
-                {"_id": ObjectId(article_id)},
-                {MongoOperators.PULL_ALL: {self.FIELD_TAGS: tags}},
+                {"_id": ObjectId(article_id)}, {"$pullAll": {"tags": tags}}
             )
-
-            if result.matched_count == 0:
-                self.logger.warning(f"Article {article_id} not found")
-                return False
-
-            self.logger.info(f"Removed tags from article {article_id}: {tags}")
-            return True
-
+            if result.modified_count > 0:
+                self.logger.info(f"Removed tags from article {article_id}: {tags}")
+                return True
+            self.logger.warning(f"Article {article_id} not found")
+            return False
         except Exception as e:
             self.logger.error(f"Failed to remove tags: {str(e)}")
             raise StorageError(f"Failed to remove tags: {str(e)}")
@@ -166,3 +144,14 @@ class ArticleMongoDBStorage(MongoDBStorage[Article], ArticleStorage):
         except Exception as e:
             self.logger.error(f"Failed to list articles: {str(e)}")
             raise StorageError(f"Failed to list articles: {str(e)}")
+
+    async def get(self, entity_id: EntityID) -> Optional[Article]:
+        """Get article by ID"""
+        try:
+            doc = await self.collection.find_one({"_id": ObjectId(entity_id)})
+            if doc:
+                return Article.from_dict(doc)
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to get article: {str(e)}")
+            raise StorageError(f"Failed to get article: {str(e)}")

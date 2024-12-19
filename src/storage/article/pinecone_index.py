@@ -3,12 +3,12 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from langchain_openai import OpenAIEmbeddings
-from pinecone import Index, Pinecone
+from pinecone import Pinecone
 
 from src.config import config
 from src.utils.logger import get_logger
 
-from ..base.exceptions import SearchError, SearchIndexError
+from ..base.exceptions import SearchIndexError
 from ..base.types import EntityID
 from .interfaces import ArticleSearchIndex
 from .types import Article, ArticleFilters
@@ -29,17 +29,8 @@ class ArticlePineconeIndex(ArticleSearchIndex):
             self.namespace = namespace
             self.index_name = "articles"
 
-            # Get or create index
-            try:
-                self.pinecone_index = self.pc.Index(self.index_name)
-                logger.info(f"Connected to existing index: {self.index_name}")
-            except Exception:
-                logger.info(f"Creating new index: {self.index_name}")
-                self.pc.create_index(
-                    name=self.index_name, dimension=1536, metric="cosine"
-                )
-                self.pinecone_index = self.pc.Index(self.index_name)
-
+            # Connect to existing index
+            self.pinecone_index = self.pc.Index(self.index_name)
             logger.info(
                 f"Connected to Pinecone index: {self.index_name} namespace: {namespace}"
             )
@@ -181,3 +172,18 @@ class ArticlePineconeIndex(ArticleSearchIndex):
         except Exception as e:
             logger.error(f"Failed to find similar articles for {article_id}: {str(e)}")
             return []
+
+    async def cleanup_namespace(self) -> None:
+        """Delete all vectors in the current namespace"""
+        try:
+            # Try to delete all vectors in namespace
+            self.pinecone_index.delete(namespace=self.namespace, delete_all=True)
+            logger.info(f"Cleaned up namespace: {self.namespace}")
+        except Exception as e:
+            # If namespace doesn't exist yet, that's fine
+            if "Namespace not found" in str(e):
+                logger.info(f"Namespace {self.namespace} is already clean")
+                return
+            # For other errors, raise the exception
+            logger.error(f"Failed to cleanup namespace: {str(e)}")
+            raise SearchIndexError(f"Namespace cleanup failed: {str(e)}")
