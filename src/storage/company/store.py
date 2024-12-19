@@ -1,11 +1,14 @@
-from typing import Dict, List, Optional, Any
-from pinecone import Pinecone, ServerlessSpec
+import asyncio
+from typing import Any, Dict, List, Optional
+
 from langchain_openai import OpenAIEmbeddings
-from src.utils.logger import get_logger
+from pinecone import Pinecone, ServerlessSpec
+
 from src.config import config
+from src.utils.logger import get_logger
+
 from ..base import VectorStore
 from .models import Company, CompanyEvaluation
-import asyncio
 
 logger = get_logger(__name__)
 

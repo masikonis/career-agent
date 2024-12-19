@@ -1,6 +1,8 @@
-from typing import List, Dict
+from typing import Dict, List
+
 from ..services.knowledge.notion import NotionKnowledge
 from .base import ProfileDataSource
+
 
 class NotionProfileSource(ProfileDataSource):
     """Notion-specific implementation of profile data source"""

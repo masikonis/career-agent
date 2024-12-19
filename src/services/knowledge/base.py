@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List
 
+
 class BaseKnowledge(ABC):
     """Base class for knowledge source services"""
     

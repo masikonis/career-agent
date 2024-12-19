@@ -1,13 +1,16 @@
+import random
+from unittest.mock import Mock, patch
+
 import pytest
+from langchain_core.messages import HumanMessage
 from pydantic import PydanticDeprecationWarning
+
 from src.agents.capability_agent import CapabilityAgent
+from src.config import config
 from src.profile.manager import ProfileManager
 from src.profile.notion import NotionProfileSource
 from src.services.knowledge.notion import NotionKnowledge
-from src.config import config
-from unittest.mock import Mock, patch
-from langchain_core.messages import HumanMessage
-import random
+
 
 @pytest.fixture
 def capability_agent(model_name=config['LLM_MODELS']['basic']):

@@ -1,8 +1,9 @@
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Dict, List
 from enum import Enum
-import json
+from typing import Dict, List, Optional
+
 
 class CompanyStage(Enum):
     """Company stages focused on early-stage opportunities"""

@@ -1,5 +1,7 @@
 import pytest
-from src.services.scrapers.zenrows import ZenrowsScraper, ScraperResponse
+
+from src.services.scrapers.zenrows import ScraperResponse, ZenrowsScraper
+
 
 @pytest.fixture
 def scraper():

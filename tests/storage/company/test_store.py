@@ -1,10 +1,17 @@
+import asyncio
+from datetime import datetime
+
 import pytest
 import pytest_asyncio
-from datetime import datetime
+
+from src.storage.company.models import (
+    Company,
+    CompanyEvaluation,
+    CompanyIndustry,
+    CompanyStage,
+)
 from src.storage.company.store import CompanyVectorStore
-from src.storage.company.models import Company, CompanyStage, CompanyIndustry, CompanyEvaluation
 from src.utils.logger import get_logger
-import asyncio
 
 logger = get_logger(__name__)
 

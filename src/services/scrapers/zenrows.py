@@ -1,9 +1,12 @@
-from typing import Dict, Any, Optional
-from src.config import config
-from zenrows import ZenRowsClient
 from dataclasses import dataclass
-from src.utils.logger import get_logger
+from typing import Any, Dict, Optional
 from urllib.parse import urlparse
+
+from zenrows import ZenRowsClient
+
+from src.config import config
+from src.utils.logger import get_logger
+
 
 @dataclass
 class ScraperResponse:

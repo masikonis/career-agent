@@ -1,6 +1,9 @@
-from typing import List, Dict
+from typing import Dict, List
+
 from notion_client import Client
+
 from .base import BaseKnowledge
+
 
 class NotionKnowledge(BaseKnowledge):
     def __init__(self, api_key: str):

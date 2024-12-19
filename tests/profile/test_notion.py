@@ -1,8 +1,11 @@
+import json
+
 import pytest
+
+from src.config import config
 from src.profile.notion import NotionProfileSource
 from src.services.knowledge.notion import NotionKnowledge
-from src.config import config
-import json
+
 
 @pytest.fixture
 def profile_source():

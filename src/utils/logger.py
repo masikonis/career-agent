@@ -1,5 +1,6 @@
 import logging
 
+
 def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """Get a logger instance with the specified name."""
     logger = logging.getLogger(name)
