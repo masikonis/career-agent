@@ -1,2 +1,4 @@
 - Always use the get_logger function from src/utils/logger.py for logging.
 - Always use models from config['LLM_MODELS'] instead of hardcoded model names.
+- Never use OpenAI directly; always use LangChain for LLM operations with models from config['LLM_MODELS'].
+

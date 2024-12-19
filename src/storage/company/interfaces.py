@@ -2,7 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 
 from ..base.interfaces import BaseStorage, SearchIndex
-from ..base.types import EntityID
+from ..base.types import EntityID, Metadata
 from .types import Company, CompanyFilters
 
 class CompanyStorage(BaseStorage[Company]):
@@ -26,6 +26,10 @@ class CompanyStorage(BaseStorage[Company]):
 
 class CompanySearchIndex(SearchIndex[Company]):
     """Extended search interface for company-specific search operations"""
+
+    async def index(self, entity_id: EntityID, company: Company, metadata: Metadata) -> bool:
+        """Index a company for search"""
+        pass
 
     async def search_similar(self, company_id: EntityID, limit: int = 10) -> List[Company]:
         """Find companies similar to the given company"""
