@@ -38,7 +38,7 @@ class GenericSearchIndex(ABC, Generic[T]):
     """Generic search index interface"""
 
     @abstractmethod
-    async def index(self, entity_id: EntityID, entity: T) -> bool:
+    async def index(self, entity_id: EntityID, entity: T, metadata: Metadata) -> bool:
         """Index an entity for search"""
         pass
 

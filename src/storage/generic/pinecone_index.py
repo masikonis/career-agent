@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional, Type
 
 import pinecone
 from langchain_openai import OpenAIEmbeddings
@@ -7,8 +7,7 @@ from langchain_openai import OpenAIEmbeddings
 from src.config import config
 from src.utils.logger import get_logger
 
-from ..base.exceptions import StorageError
-from ..base.types import EntityID
+from ..base.types import EntityID, Metadata
 from .interfaces import GenericSearchIndex
 from .types import T
 
@@ -16,199 +15,170 @@ from .types import T
 class PineconeSearchIndex(GenericSearchIndex[T]):
     """Generic Pinecone search index implementation"""
 
-    def __init__(self, embeddings: OpenAIEmbeddings, is_test: bool = False):
+    def __init__(self, namespace: str, entity_class: Type[T], is_test: bool = False):
         """Initialize Pinecone search index"""
         self.logger = get_logger(self.__class__.__name__.lower())
-        self.embeddings = embeddings
+        self.namespace = f"{namespace}-test" if is_test else namespace
+        self.entity_class = entity_class
+
+        # Initialize embeddings using model from config
+        self.embeddings = OpenAIEmbeddings(
+            model=config["LLM_MODELS"]["embeddings"],
+            openai_api_key=config["OPENAI_API_KEY"],
+        )
 
         # Initialize Pinecone
-        pinecone.init(
-            api_key=config["PINECONE_API_KEY"], environment=config["PINECONE_ENV"]
-        )
-
-        index_name = config["PINECONE_INDEX_NAME"]
-        self.namespace = "test" if is_test else "production"
-
-        # Check if index exists, if not create it
-        if index_name not in pinecone.list_indexes():
-            self.logger.info(f"Creating new index: {index_name}")
-            pinecone.create_index(
-                name=index_name,
-                dimension=1536,  # OpenAI embedding dimension
-                metric="cosine",
+        try:
+            pinecone.init(
+                api_key=config["PINECONE_API_KEY"], environment=config["PINECONE_ENV"]
             )
 
-        # Get index
-        self.pinecone_index = pinecone.Index(index_name)
-        self.logger.info(f"Connected to existing index: {index_name}")
-
-        # Initialize namespace if needed
-        try:
-            stats = self.pinecone_index.describe_index_stats()
-            if self.namespace not in stats.get("namespaces", {}):
-                self.logger.info(f"Initializing namespace: {self.namespace}")
-                # Create a dummy vector to initialize namespace
-                dummy_id = "init_" + self.namespace
-                dummy_vector = [0.0] * 1536
-                self.pinecone_index.upsert(
-                    vectors=[(dummy_id, dummy_vector, {})], namespace=self.namespace
+            index_name = config["PINECONE_INDEX_NAME"]
+            if index_name not in pinecone.list_indexes():
+                self.logger.info(f"Creating new index: {index_name}")
+                pinecone.create_index(
+                    name=index_name,
+                    dimension=1536,  # OpenAI embedding dimension
+                    metric="cosine",
                 )
-                # Delete the dummy vector
-                self.pinecone_index.delete(ids=[dummy_id], namespace=self.namespace)
+
+            self.pinecone_index = pinecone.Index(index_name)
+            self.logger.info(f"Connected to Pinecone index: {index_name}")
+
         except Exception as e:
-            self.logger.error(f"Failed to initialize namespace: {e}")
-            raise StorageError(f"Failed to initialize Pinecone namespace: {e}")
+            self.logger.error(f"Failed to initialize Pinecone: {str(e)}")
+            raise
 
-        self.logger.info(
-            f"Connected to Pinecone index: {index_name} namespace: {self.namespace}"
-        )
-
-    async def index(self, entity_id: EntityID, entity: T) -> None:
-        """Index a document in Pinecone"""
+    async def _get_embedding(self, text: str) -> List[float]:
+        """Get embedding for text using LangChain"""
         try:
-            # Generate embedding for the document
-            text_to_embed = f"{entity.title} {entity.content}"
-            self.logger.info(
-                f"Generating embedding for document: {text_to_embed[:100]}..."
-            )
-            embedding = await self.embeddings.aembed_query(text_to_embed)
+            embedding = await self.embeddings.aembed_query(text)
+            return embedding
+        except Exception as e:
+            self.logger.error(f"Failed to generate embedding: {str(e)}")
+            raise
 
-            # Convert embedding to list if it's not already
-            if not isinstance(embedding, list):
-                embedding = embedding.tolist()
+    async def index(self, entity_id: EntityID, entity: T, metadata: Metadata) -> bool:
+        """Index an entity for search"""
+        try:
+            # Get search text from entity
+            search_text = entity.get_search_text()
 
-            # Prepare metadata
-            metadata = {
-                "title": entity.title,
-                "content": entity.content[:1000],
-                "url": entity.url,
-                "source": entity.source,
-            }
+            # Generate embedding
+            vector = await self._get_embedding(search_text)
 
             # Upsert to Pinecone
-            self.logger.info(
-                f"Upserting document {entity_id} to Pinecone namespace: {self.namespace}"
-            )
             self.pinecone_index.upsert(
-                vectors=[
-                    (str(entity_id), embedding, metadata)
-                ],  # Changed to tuple format
-                namespace=self.namespace,
+                vectors=[(str(entity_id), vector, metadata)], namespace=self.namespace
             )
 
-            # Verify the document was indexed with retries
-            max_retries = 3
-            for i in range(max_retries):
-                fetch_response = self.pinecone_index.fetch(
+            # Verify indexing
+            return await self.verify_indexing(entity_id)
+
+        except Exception as e:
+            self.logger.error(f"Failed to index entity {entity_id}: {str(e)}")
+            return False
+
+    async def verify_indexing(self, entity_id: EntityID, max_retries: int = 3) -> bool:
+        """Verify that an entity was properly indexed"""
+        for attempt in range(max_retries):
+            await asyncio.sleep(2)
+            try:
+                result = self.pinecone_index.fetch(
                     ids=[str(entity_id)], namespace=self.namespace
                 )
-                if str(entity_id) in fetch_response.vectors:
-                    self.logger.info(f"Successfully indexed document {entity_id}")
-                    return
-                if i < max_retries - 1:
-                    self.logger.warning(
-                        f"Vector not found, retrying... (attempt {i+1}/{max_retries})"
-                    )
-                    await asyncio.sleep(1)  # Wait before retry
-
-            raise StorageError(
-                f"Vector {entity_id} not found after {max_retries} retries"
-            )
-
-        except Exception as e:
-            self.logger.error(f"Failed to index document: {str(e)}")
-            self.logger.error(f"Document ID: {entity_id}, Title: {entity.title}")
-            raise StorageError(f"Document indexing failed: {str(e)}")
-
-    async def delete_from_index(self, doc_id: EntityID) -> None:
-        """Delete a document from the index"""
-        try:
-            self.pinecone_index.delete(ids=[str(doc_id)], namespace=self.namespace)
-        except Exception as e:
-            self.logger.error(f"Failed to delete document {doc_id}: {str(e)}")
-            raise StorageError(f"Document deletion failed: {str(e)}")
+                if str(entity_id) in result["vectors"]:
+                    return True
+            except Exception as e:
+                self.logger.warning(
+                    f"Verification attempt {attempt + 1} failed: {str(e)}"
+                )
+        return False
 
     async def search(
-        self, query: str, filters: Optional[Dict[str, Any]] = None, limit: int = 10
+        self, query: str, filters: Optional[Dict[str, any]] = None, limit: int = 10
     ) -> List[EntityID]:
-        """Search for documents by text query"""
+        """Search for entities"""
         try:
-            # First, let's see what's in the index
-            stats = self.pinecone_index.describe_index_stats()
-            self.logger.info(f"Index stats: {stats}")
-
-            # Generate query embedding
-            self.logger.info(f"Generating embedding for query: {query}")
-            query_embedding = await self.embeddings.aembed_query(query)
-
-            # Search in Pinecone with minimal parameters
-            self.logger.info(f"Searching Pinecone with namespace: {self.namespace}")
-            results = self.pinecone_index.query(
-                namespace=self.namespace,
-                vector=query_embedding,
-                top_k=limit,
-                include_metadata=True,
-                score_threshold=0.0,  # Accept all matches
-            )
-
-            # Log results in detail
-            self.logger.info(f"Pinecone returned {len(results.matches)} matches")
-            for match in results.matches:
-                self.logger.info(f"Match ID: {match.id}, Score: {match.score}")
-                self.logger.info(f"Match metadata: {match.metadata}")
-
-            # Return just the IDs
-            return [match.id for match in results.matches]
-
-        except Exception as e:
-            self.logger.error(f"Search failed: {str(e)}")
-            self.logger.error(
-                f"Query: {query}, Namespace: {self.namespace}, Filters: {filters}"
-            )
-            raise StorageError(f"Search failed: {str(e)}")
-
-    async def find_similar(self, query: str, limit: int = 5) -> List[T]:
-        """Search for similar documents with full metadata"""
-        try:
-            # Generate query embedding
-            query_embedding = await self.embeddings.aembed_query(query)
+            # Generate embedding for search query
+            vector = await self._get_embedding(query)
 
             # Search in Pinecone
-            results = self.pinecone_index.query(
+            response = self.pinecone_index.query(
                 namespace=self.namespace,
-                vector=query_embedding,
+                vector=vector,
                 top_k=limit,
+                include_metadata=True,
+                filter=filters,
+            )
+
+            # Extract and return entity IDs
+            results = [match.id for match in response.matches]
+            self.logger.info(f"Search found {len(results)} results for query: {query}")
+            return results
+
+        except Exception as e:
+            self.logger.error(f"Failed to search entities: {str(e)}")
+            return []
+
+    async def delete_from_index(self, entity_id: EntityID) -> bool:
+        """Remove an entity from the search index"""
+        try:
+            self.pinecone_index.delete(ids=[str(entity_id)], namespace=self.namespace)
+            self.logger.info(
+                f"Deleted entity {entity_id} from namespace {self.namespace}"
+            )
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Failed to delete entity {entity_id}: {str(e)}")
+            return False
+
+    async def find_similar(
+        self, entity_id: EntityID, limit: int = 10
+    ) -> List[EntityID]:
+        """Find similar entities"""
+        try:
+            # Get the entity's vector
+            result = self.pinecone_index.fetch(
+                ids=[str(entity_id)], namespace=self.namespace
+            )
+
+            if not result or str(entity_id) not in result["vectors"]:
+                self.logger.error(f"Entity {entity_id} not found in index")
+                return []
+
+            # Use the vector to find similar entities
+            vector = result["vectors"][str(entity_id)]["values"]
+            response = self.pinecone_index.query(
+                namespace=self.namespace,
+                vector=vector,
+                top_k=limit + 1,  # +1 because the entity itself will be included
                 include_metadata=True,
             )
 
-            # Convert results to documents
-            docs = []
-            for match in results.matches:
-                metadata = match.metadata
-                doc = {"id": match.id, **metadata}
-                docs.append(doc)
+            # Filter out the original entity
+            similar_ids = []
+            for match in response.matches:
+                if match.id != str(entity_id):
+                    similar_ids.append(match.id)
 
-            return docs
+            return similar_ids[:limit]
 
         except Exception as e:
-            self.logger.error(f"Search failed: {str(e)}")
-            raise StorageError(f"Search failed: {str(e)}")
+            self.logger.error(
+                f"Failed to find similar entities for {entity_id}: {str(e)}"
+            )
+            return []
 
-    async def cleanup_namespace(self) -> None:
-        """Clean up test namespace - only used in test environment"""
-        if self.namespace != "test":
-            self.logger.warning("Attempted to cleanup non-test namespace! Aborting.")
-            return None
-
-        try:
-            self.pinecone_index.delete(namespace=self.namespace, delete_all=True)
-            self.logger.info(f"Successfully cleaned up namespace {self.namespace}")
-        except Exception as e:
-            if "Namespace not found" in str(e):
-                self.logger.info(f"Namespace {self.namespace} already clean")
-            else:
-                self.logger.error(
-                    f"Failed to cleanup namespace {self.namespace}: {str(e)}"
-                )
-
-        return None
+    async def cleanup_namespace(self):
+        """Clean up all vectors in the namespace - should only be used in test environment"""
+        if self.namespace.endswith("-test"):
+            try:
+                # Delete all vectors in the test namespace
+                self.pinecone_index.delete(delete_all=True, namespace=self.namespace)
+                self.logger.info(f"Cleaned up test namespace: {self.namespace}")
+            except Exception as e:
+                self.logger.error(f"Failed to cleanup test namespace: {str(e)}")
+        else:
+            self.logger.error("Cleanup can only be performed on test namespaces")
