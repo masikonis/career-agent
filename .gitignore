@@ -74,8 +74,4 @@ tmp/
 static/*
 !static/.gitkeep
 src/frontend/node_modules/
-src/frontend/.env
-src/frontend/dist/
-src/frontend/coverage/
 package-lock.json
-node_modules/
