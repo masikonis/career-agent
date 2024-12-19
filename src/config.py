@@ -22,6 +22,8 @@ def load_config() -> Dict[str, str]:
         "LANGCHAIN_API_KEY",
         "NOTION_API_KEY",
         "PINECONE_API_KEY",
+        "MONGODB_URI",
+        "MONGODB_DB_NAME",
     ]:
         if key in os.environ:
             existing_vars[key] = os.environ[key]
@@ -37,6 +39,8 @@ def load_config() -> Dict[str, str]:
         "LANGCHAIN_API_KEY": os.getenv("LANGCHAIN_API_KEY"),
         "NOTION_API_KEY": os.getenv("NOTION_API_KEY"),
         "PINECONE_API_KEY": os.getenv("PINECONE_API_KEY"),
+        "MONGODB_URI": os.getenv("MONGODB_URI"),
+        "MONGODB_DB_NAME": os.getenv("MONGODB_DB_NAME"),
         "LLM_MODELS": LLM_MODELS,
     }
 
