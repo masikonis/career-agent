@@ -24,7 +24,6 @@
         "tailwindcss-animate": "^1.0.7"
     },
     "devDependencies": {
-        "@shadcn/ui": "^0.0.4",
         "@testing-library/jest-dom": "^6.6.3",
         "@testing-library/react": "^16.1.0",
         "@types/jest": "^29.5.14",
