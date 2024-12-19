@@ -74,4 +74,5 @@ tmp/
 static/*
 !static/.gitkeep
 src/frontend/node_modules/
+src/frontend/.env
 package-lock.json
