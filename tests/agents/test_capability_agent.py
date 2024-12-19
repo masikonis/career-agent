@@ -4,7 +4,7 @@ from src.agents.capability_agent import CapabilityAgent
 from src.profile.manager import ProfileManager
 from src.profile.notion import NotionProfileSource
 from src.services.knowledge.notion import NotionKnowledge
-from src.settings import config
+from src.config import config
 from unittest.mock import Mock, patch
 from langchain_core.messages import HumanMessage
 import random

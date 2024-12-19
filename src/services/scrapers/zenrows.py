@@ -1,5 +1,5 @@
 from typing import Dict, Any, Optional
-from src.settings import config
+from src.config import config
 from zenrows import ZenRowsClient
 from dataclasses import dataclass
 from src.utils.logger import get_logger
