@@ -1,26 +1,20 @@
-from dotenv import load_dotenv
-import os
-import openai
-from langsmith.wrappers import wrap_openai
-from langsmith import traceable
+from fastapi import FastAPI, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
-def main():
-    # Load environment variables
-    load_dotenv()
-    
-    # Wrap the OpenAI client
-    client = wrap_openai(openai.Client(api_key=os.getenv('OPENAI_API_KEY')))
-    
-    @traceable
-    def chat_pipeline(user_input: str):
-        response = client.chat.completions.create(
-            messages=[{"role": "user", "content": user_input}],
-            model="gpt-4o-mini"
-        )
-        return response.choices[0].message.content
-    
-    # Test the chat pipeline
-    print(chat_pipeline("Say hello!"))
+app = FastAPI()
+
+# Set up templates directory
+templates = Jinja2Templates(directory="src/templates")
+
+@app.get("/")
+def get_home_page(request: Request):
+    return templates.TemplateResponse(
+        "home.html",
+        {"request": request}
+    )
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
