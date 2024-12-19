@@ -19,3 +19,5 @@ A personal crew of AI agents that help me spot opportunities, track industry tre
 [![shadcn/ui](https://img.shields.io/badge/shadcn/ui-4B5563?style=for-the-badge&logo=react&logoColor=white)](https://ui.shadcn.com/)
 [![Pytest](https://img.shields.io/badge/Pytest-0A9B3D?style=for-the-badge&logo=pytest&logoColor=white)](https://pytest.org/)
 [![Jest](https://img.shields.io/badge/Jest-32B3A0?style=for-the-badge&logo=jest&logoColor=white)](https://jestjs.io/)
+[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/features/actions)
+[![Sentry](https://img.shields.io/badge/Sentry-362D59?style=for-the-badge&logo=sentry&logoColor=white)](https://sentry.io/)
