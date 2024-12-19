@@ -13,6 +13,7 @@ A personal crew of AI agents that help me spot opportunities, track industry tre
 [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Pinecone](https://img.shields.io/badge/Pinecone-00A3E0?style=for-the-badge&logo=pinecone&logoColor=white)](https://www.pinecone.io/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
 [![Recoil](https://img.shields.io/badge/Recoil-00BFFF?style=for-the-badge&logo=react&logoColor=white)](https://recoiljs.org/)
 [![shadcn/ui](https://img.shields.io/badge/shadcn/ui-4B5563?style=for-the-badge&logo=react&logoColor=white)](https://ui.shadcn.com/)
