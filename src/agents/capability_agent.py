@@ -1,12 +1,14 @@
-from langchain_openai import ChatOpenAI
-from langgraph.graph import MessagesState, StateGraph
-from langsmith import traceable
 import asyncio
 from typing import Any, Callable, Optional
+
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import StructuredTool, Tool
+from langchain_openai import ChatOpenAI
+from langgraph.graph import MessagesState, StateGraph
+from langsmith import traceable
+
 from src.config import config
 from src.profile.manager import ProfileManager
 from src.utils.logger import get_logger
