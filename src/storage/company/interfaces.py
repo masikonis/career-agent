@@ -1,9 +1,10 @@
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 
 from ..base.interfaces import BaseStorage, SearchIndex
 from ..base.types import EntityID
 from .types import Company, CompanyFilters
+
 
 class CompanyStorage(BaseStorage[Company]):
     """Extended storage interface for company-specific operations"""
@@ -24,18 +25,18 @@ class CompanyStorage(BaseStorage[Company]):
         """Get all evaluations for a company"""
         pass
 
+
 class CompanySearchIndex(SearchIndex[Company]):
     """Extended search interface for company-specific search operations"""
 
-    async def search_similar(self, company_id: EntityID, limit: int = 10) -> List[Company]:
+    async def search_similar(
+        self, company_id: EntityID, limit: int = 10
+    ) -> List[Company]:
         """Find companies similar to the given company"""
         pass
 
     async def search_with_filters(
-        self, 
-        query: str, 
-        filters: CompanyFilters,
-        limit: int = 10
+        self, query: str, filters: CompanyFilters, limit: int = 10
     ) -> List[EntityID]:
         """Search companies with specific filters"""
         pass
