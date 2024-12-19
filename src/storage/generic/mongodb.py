@@ -1,15 +1,55 @@
-from typing import Any, Dict, List, Optional, Type
+from datetime import datetime
+from typing import Any, ClassVar, Dict, Generic, List, Optional
 
 from bson import ObjectId
-from pymongo import MongoClient
-from pymongo.database import Database
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
 
 from src.utils.logger import get_logger
 
 from ..base.exceptions import StorageError
-from ..base.types import EntityID
+from ..base.types import EntityID, T
 from .interfaces import GenericStorage
-from .types import T
+
+
+class MongoOperators:
+    """MongoDB operator constants for use across all MongoDB implementations"""
+
+    # Comparison
+    EQ = "$eq"
+    GT = "$gt"
+    GTE = "$gte"
+    LT = "$lt"
+    LTE = "$lte"
+    NE = "$ne"
+    IN = "$in"
+    NIN = "$nin"
+
+    # Logical
+    AND = "$and"
+    OR = "$or"
+    NOT = "$not"
+    NOR = "$nor"
+
+    # Array
+    ALL = "$all"
+    ELEM_MATCH = "$elemMatch"
+    SIZE = "$size"
+
+    # Update
+    SET = "$set"
+    UNSET = "$unset"
+    INC = "$inc"
+    ADD_TO_SET = "$addToSet"
+    PUSH = "$push"
+    PULL = "$pull"
+    PULL_ALL = "$pullAll"
+    POP = "$pop"
+
+    # Array Update Modifiers
+    EACH = "$each"
+    POSITION = "$position"
+    SLICE = "$slice"
+    SORT = "$sort"
 
 
 class MongoDBStorage(GenericStorage[T]):
@@ -17,32 +57,17 @@ class MongoDBStorage(GenericStorage[T]):
 
     def __init__(
         self,
-        config: Dict,
-        collection_name: str,
-        entity_class: Type[T],
+        connection_string: str,
+        database: str,
+        collection: str,
         is_test: bool = False,
     ):
-        try:
-            self.client = MongoClient(config["MONGODB_URI"])
-            db_name = (
-                f"{config['MONGODB_DB_NAME']}-test"
-                if is_test
-                else config["MONGODB_DB_NAME"]
-            )
-            self.db: Database = self.client[db_name]
-            self.collection = self.db[collection_name]
-            self.entity_class = entity_class
-            self.logger = get_logger(f"mongodb_{collection_name}")
-
-            # Create indexes based on entity's search_fields
-            if hasattr(entity_class, "search_fields"):
-                for field in entity_class.search_fields:
-                    self.collection.create_index(field)
-
-            self.logger.info(f"Connected to MongoDB collection: {collection_name}")
-        except Exception as e:
-            self.logger.error(f"Failed to initialize MongoDB connection: {str(e)}")
-            raise StorageError(f"MongoDB initialization failed: {str(e)}")
+        self.client = AsyncIOMotorClient(connection_string)
+        self.db = self.client[database]
+        self.collection_name = f"test_{collection}" if is_test else collection
+        self.collection: AsyncIOMotorCollection = self.db[self.collection_name]
+        self.is_test = is_test
+        self.logger = get_logger(f"mongodb_{collection}")
 
     async def create(self, entity: T) -> EntityID:
         """Create a new entity"""
