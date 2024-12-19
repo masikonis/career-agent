@@ -10,16 +10,8 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: path.resolve(__dirname, '../static'),
+    outDir: '../../static',
     emptyOutDir: true,
-    rollupOptions: {
-      input: 'src/main.tsx',
-      output: {
-        entryFileNames: 'js/[name]-[hash].js',
-        chunkFileNames: 'js/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
-      }
-    }
   },
   server: {
     proxy: {
@@ -28,5 +20,6 @@ export default defineConfig({
         changeOrigin: true
       }
     }
-  }
+  },
+  base: '/static/',
 })
