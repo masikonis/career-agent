@@ -7,7 +7,13 @@ from ..base.exceptions import StorageOperationError, StorageSyncError
 from ..base.types import EntityID, Metadata
 from ..managers.base import BaseStorageManager
 from .interfaces import CompanySearchIndex, CompanyStorage
-from .types import Company, CompanyEvaluation, CompanyFilters
+from .types import (
+    Company,
+    CompanyEvaluation,
+    CompanyFilters,
+    CompanyIndustry,
+    CompanyStage,
+)
 
 logger = get_logger(__name__)
 
@@ -25,15 +31,27 @@ class CompanyStorageManager(BaseStorageManager[Company]):
 
     def _create_metadata(self, company: Company) -> Metadata:
         """Create metadata for company indexing"""
-        return Metadata(
-            {
-                "created_at": company.created_at,
-                "updated_at": company.updated_at,
-                "entity_type": "company",
-                "industry": company.industry.value,
-                "stage": company.stage.value,
-            }
+        # Convert string values back to enums if needed
+        industry = (
+            company.industry
+            if isinstance(company.industry, CompanyIndustry)
+            else CompanyIndustry(company.industry)
         )
+        stage = (
+            company.stage
+            if isinstance(company.stage, CompanyStage)
+            else CompanyStage(company.stage)
+        )
+
+        return {
+            "name": company.name,
+            "description": company.description,
+            "industry": industry.value,
+            "stage": stage.value,
+            "created_at": str(company.created_at),
+            "updated_at": str(company.updated_at),
+            "entity_type": "company",
+        }
 
     async def find_similar_companies(
         self, company_id: EntityID, limit: int = 10
@@ -51,9 +69,7 @@ class CompanyStorageManager(BaseStorageManager[Company]):
         """Search companies with optional filters"""
         try:
             # Get IDs from search index with filters
-            entity_ids = await self.company_search.search_with_filters(
-                query, filters or CompanyFilters(), limit
-            )
+            entity_ids = await self.company_search.search(query)
 
             # Fetch full company data
             companies = []
@@ -96,3 +112,52 @@ class CompanyStorageManager(BaseStorageManager[Company]):
         except Exception as e:
             logger.error(f"Failed to get evaluations: {str(e)}")
             raise StorageOperationError("get_evaluations", str(e))
+
+    async def create(self, company: Company) -> EntityID:
+        """Create a company and index it for search"""
+        try:
+            # Create in primary storage first
+            entity_id = await self.company_storage.create(company)
+
+            # Create metadata for search indexing
+            metadata = {
+                "name": company.name,
+                "description": company.description,
+                "industry": company.industry.value,
+                "stage": company.stage.value,
+                "created_at": company.created_at.isoformat(),
+                "updated_at": company.updated_at.isoformat(),
+                "entity_type": "company",
+            }
+
+            # Index in search
+            await self.company_search.index(entity_id, company, metadata)
+
+            return entity_id
+
+        except Exception as e:
+            logger.error(f"Failed to create company: {str(e)}")
+            raise StorageOperationError("company_create", str(e))
+
+    async def delete(self, company_id: EntityID) -> bool:
+        """Delete a company from both storage and search index"""
+        try:
+            # Delete from MongoDB
+            success = await self.company_storage.delete(company_id)
+            if not success:
+                raise StorageOperationError(
+                    "delete", f"Failed to delete company {company_id} from storage"
+                )
+
+            # Delete from search index
+            success = await self.search_index.delete(company_id)
+            if not success:
+                logger.warning(
+                    f"Failed to delete company {company_id} from search index"
+                )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to delete company {company_id}: {str(e)}")
+            raise StorageOperationError("delete", str(e))

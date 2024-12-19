@@ -24,6 +24,7 @@ class MongoDBCompanyStorage(CompanyStorage):
             self.client = MongoClient(config["MONGODB_URI"])
             self.db: Database = self.client[config["MONGODB_DB_NAME"]]
             self.companies = self.db.companies
+            self.collection = self.db["companies"]
 
             # Create indexes
             self.companies.create_index("name")
@@ -123,3 +124,41 @@ class MongoDBCompanyStorage(CompanyStorage):
             notes=data.get("notes"),
             evaluated_at=data["evaluated_at"],
         )
+
+    async def add_evaluation(
+        self, company_id: EntityID, evaluation: CompanyEvaluation
+    ) -> bool:
+        """Add an evaluation to a company"""
+        try:
+            # Convert evaluation to dict
+            eval_dict = {
+                "match_score": evaluation.match_score,
+                "skills_match": evaluation.skills_match,
+                "notes": evaluation.notes,
+                "evaluated_at": evaluation.evaluated_at or datetime.now(),
+            }
+
+            # Add to evaluations array
+            result = self.companies.update_one(
+                {"_id": ObjectId(company_id)}, {"$push": {"evaluations": eval_dict}}
+            )
+
+            if result.modified_count > 0:
+                logger.info(f"Added evaluation to company {company_id}")
+                return True
+            else:
+                logger.error(f"Company {company_id} not found")
+                return False
+
+        except Exception as e:
+            logger.error(f"Failed to add evaluation to company {company_id}: {str(e)}")
+            return False
+
+    async def cleanup_test_data(self) -> None:
+        """Clean up test data from MongoDB - only used in test environment"""
+        try:
+            # Delete all documents in the test database
+            result = self.collection.delete_many({})  # No await here
+            logger.info(f"Successfully cleaned up test documents from MongoDB")
+        except Exception as e:
+            logger.error(f"Failed to cleanup test data: {str(e)}")

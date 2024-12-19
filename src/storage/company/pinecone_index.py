@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+import pinecone
 from langchain_core.embeddings import Embeddings
 from langchain_openai import OpenAIEmbeddings
 from pinecone import Index, Pinecone
@@ -22,30 +23,29 @@ class PineconeCompanyIndex(CompanySearchIndex):
 
     def __init__(self, namespace: str = "prod"):
         try:
-            # Initialize LangChain embeddings with proper model
-            self.embeddings: Embeddings = OpenAIEmbeddings(
-                model=config["LLM_MODELS"]["embeddings"]
-            )
+            # Initialize OpenAI embeddings
+            self.embeddings = OpenAIEmbeddings(model=config["LLM_MODELS"]["embeddings"])
 
             # Initialize Pinecone
             self.pc = Pinecone(api_key=config["PINECONE_API_KEY"])
-
-            # Setup index
             self.namespace = namespace
             self.index_name = "companies"
 
-            # Create index if it doesn't exist
-            existing_indexes = self.pc.list_indexes()
-            if self.index_name not in [idx.name for idx in existing_indexes]:
+            # Get or create index
+            try:
+                self.pinecone_index = self.pc.Index(self.index_name)
+                logger.info(f"Connected to existing index: {self.index_name}")
+            except Exception:
+                logger.info(f"Creating new index: {self.index_name}")
                 self.pc.create_index(
-                    name=self.index_name,
-                    dimension=1536,  # OpenAI embedding dimension
-                    metric="cosine",
+                    name=self.index_name, dimension=1536, metric="cosine"
                 )
-                logger.info(f"Created new Pinecone index: {self.index_name}")
+                self.pinecone_index = self.pc.Index(self.index_name)
 
-            # Get the index instance
-            self.pinecone_index: Index = self.pc.Index(name=self.index_name)
+            # Clean up test namespace
+            if namespace == "test":
+                self.cleanup_namespace()
+
             logger.info(
                 f"Connected to Pinecone index: {self.index_name} namespace: {namespace}"
             )
@@ -53,6 +53,15 @@ class PineconeCompanyIndex(CompanySearchIndex):
         except Exception as e:
             logger.error(f"Failed to initialize Pinecone: {str(e)}")
             raise SearchIndexError(f"Pinecone initialization failed: {str(e)}")
+
+    def cleanup_namespace(self) -> None:
+        """Clean up test namespace - only used in test environment"""
+        try:
+            # Delete all vectors in the namespace
+            self.pinecone_index.delete(namespace=self.namespace, delete_all=True)
+            logger.info(f"Successfully cleaned up namespace {self.namespace}")
+        except Exception as e:
+            logger.error(f"Failed to cleanup namespace {self.namespace}: {str(e)}")
 
     async def _get_embedding(self, text: str) -> List[float]:
         """Generate embedding vector for text using LangChain"""
@@ -72,16 +81,73 @@ class PineconeCompanyIndex(CompanySearchIndex):
             # Generate embedding from company description
             vector = await self._get_embedding(company.description)
 
-            # Upsert to Pinecone using the index instance
+            logger.info(f"Vector type: {type(vector)}, length: {len(vector)}")
+
+            # Convert metadata to dict and ensure all values are strings
+            metadata_dict = {
+                k: str(v) if not isinstance(v, (int, float, bool, str)) else v
+                for k, v in metadata.items()
+            }
+
+            logger.info(f"Upserting to namespace {self.namespace} with ID {entity_id}")
+            logger.info(f"Vector dimensions: {len(vector)}")
+            logger.info(f"Metadata: {metadata_dict}")
+
+            # Upsert to Pinecone
             self.pinecone_index.upsert(
-                vectors=[(str(entity_id), vector, metadata)], namespace=self.namespace
+                vectors=[
+                    {"id": str(entity_id), "values": vector, "metadata": metadata_dict}
+                ],
+                namespace=self.namespace,
             )
 
-            logger.info(f"Indexed company {entity_id} in namespace {self.namespace}")
-            return True
+            # More lenient verification with longer delays
+            max_retries = 5  # Increased from 3
+            for attempt in range(max_retries):
+                await asyncio.sleep(3)  # Increased from 2
+                try:
+                    # Try both fetch and search to verify
+                    fetch_result = self.pinecone_index.fetch(
+                        ids=[str(entity_id)], namespace=self.namespace
+                    )
+
+                    if str(entity_id) in fetch_result.vectors:
+                        logger.info(
+                            f"Successfully verified vector for {entity_id} (attempt {attempt + 1})"
+                        )
+                        return True
+
+                    # Fallback to search if fetch doesn't find it
+                    search_result = self.pinecone_index.query(
+                        vector=vector,
+                        top_k=1,
+                        namespace=self.namespace,
+                        include_metadata=True,
+                    )
+
+                    if search_result.matches and any(
+                        m.id == str(entity_id) for m in search_result.matches
+                    ):
+                        logger.info(
+                            f"Successfully verified vector via search for {entity_id} (attempt {attempt + 1})"
+                        )
+                        return True
+
+                except Exception as e:
+                    logger.warning(
+                        f"Verification attempt {attempt + 1} failed: {str(e)}"
+                    )
+                    if attempt == max_retries - 1:
+                        raise
+
+            logger.error(
+                f"Failed to verify upsert for {entity_id} after {max_retries} attempts"
+            )
+            return False
 
         except Exception as e:
-            logger.error(f"Failed to index company {entity_id}: {str(e)}")
+            logger.error(f"Failed to add company {entity_id} to index: {str(e)}")
+            logger.exception("Full error:")
             return False
 
     async def search(self, query: str, limit: int = 10) -> List[EntityID]:
@@ -171,26 +237,49 @@ class PineconeCompanyIndex(CompanySearchIndex):
             # Generate embedding for the query
             vector = await self._get_embedding(query)
 
-            # Build filter conditions
-            filter_conditions = {}
-            if filters.industries:
-                filter_conditions["industry"] = {
-                    "$in": [i.value for i in filters.industries]
-                }
-            if filters.stages:
-                filter_conditions["stage"] = {"$in": [s.value for s in filters.stages]}
-
             # Search with filters
             response = self.pinecone_index.query(
-                namespace=self.namespace,
+                namespace=self.namespace,  # Make sure we're using the right namespace
                 vector=vector,
                 top_k=limit,
                 include_metadata=True,
-                filter=filter_conditions if filter_conditions else None,
+                filter=filters if filters else None,
             )
+
+            # Log the results for debugging
+            logger.info(
+                f"Search in namespace {self.namespace} found {len(response.matches)} results"
+            )
+            for match in response.matches:
+                logger.info(f"Found match: {match.id} in namespace {self.namespace}")
 
             return [match.id for match in response.matches]
 
         except Exception as e:
             logger.error(f"Failed to search with filters: {str(e)}")
             return []
+
+    async def delete(self, entity_id: EntityID) -> bool:
+        """Delete a company from the search index"""
+        try:
+            logger.info(f"Deleting company {entity_id} from namespace {self.namespace}")
+
+            # Delete from Pinecone
+            self.pinecone_index.delete(ids=[str(entity_id)], namespace=self.namespace)
+
+            # Verify deletion
+            for i in range(3):  # Try up to 3 times
+                await asyncio.sleep(1)
+                stats = self.pinecone_index.describe_index_stats()
+                if str(entity_id) not in [
+                    id for id in self.pinecone_index.fetch(ids=[str(entity_id)]).vectors
+                ]:
+                    logger.info(f"Successfully deleted company {entity_id}")
+                    return True
+
+            logger.error(f"Failed to verify deletion of company {entity_id}")
+            return False
+
+        except Exception as e:
+            logger.error(f"Failed to delete company {entity_id}: {str(e)}")
+            return False
