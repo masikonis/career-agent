@@ -5,6 +5,9 @@ from pathlib import Path
 
 app = FastAPI()
 
+# Mount static directory for built frontend files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # Set up templates directory
 templates = Jinja2Templates(directory="src/templates")
 

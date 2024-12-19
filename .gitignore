@@ -69,3 +69,13 @@ poetry.lock
 local_dev/
 temp/
 tmp/
+
+# Frontend
+static/*
+!static/.gitkeep
+frontend/node_modules/
+frontend/.env
+frontend/dist/
+frontend/coverage/
+package-lock.json
+node_modules/
