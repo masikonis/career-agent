@@ -15,6 +15,7 @@ A personal crew of AI agents that help me spot opportunities, track industry tre
 [![Pinecone](https://img.shields.io/badge/Pinecone-00A3E0?style=for-the-badge&logo=pinecone&logoColor=white)](https://www.pinecone.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Recoil](https://img.shields.io/badge/Recoil-00BFFF?style=for-the-badge&logo=react&logoColor=white)](https://recoiljs.org/)
 [![shadcn/ui](https://img.shields.io/badge/shadcn/ui-4B5563?style=for-the-badge&logo=react&logoColor=white)](https://ui.shadcn.com/)
 [![Pytest](https://img.shields.io/badge/Pytest-0A9B3D?style=for-the-badge&logo=pytest&logoColor=white)](https://pytest.org/)
