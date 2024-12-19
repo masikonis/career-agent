@@ -1,10 +1,13 @@
-from typing import Generic, Optional, List
+from typing import Generic, List, Optional
+
 from src.utils.logger import get_logger
+
+from ..base.exceptions import StorageOperationError, StorageSyncError
 from ..base.interfaces import BaseStorage, SearchIndex
 from ..base.types import EntityID, Metadata, T
-from ..base.exceptions import StorageSyncError, StorageOperationError
 
 logger = get_logger(__name__)
+
 
 class BaseStorageManager(Generic[T]):
     """
@@ -21,11 +24,11 @@ class BaseStorageManager(Generic[T]):
         try:
             # First, create in primary storage
             entity_id = await self.storage.create(entity)
-            
+
             # Then, index for search
             metadata = self._create_metadata(entity)
             await self.search_index.index(entity_id, entity, metadata)
-            
+
             return entity_id
 
         except Exception as e:
@@ -42,13 +45,13 @@ class BaseStorageManager(Generic[T]):
         try:
             # First, get IDs from search index
             entity_ids = await self.search_index.search(query, limit)
-            
+
             # Then, get full entities from storage
             entities = []
             for entity_id in entity_ids:
                 if entity := await self.get(entity_id):
                     entities.append(entity)
-            
+
             return entities
 
         except Exception as e:
