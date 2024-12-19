@@ -1,7 +1,7 @@
 import pytest
 from src.profile.notion import NotionProfileSource
 from src.services.knowledge.notion import NotionKnowledge
-from src.config.settings import config
+from src.settings import config
 import json
 
 @pytest.fixture

@@ -2,7 +2,7 @@ from typing import Dict, List, Optional, Any
 from pinecone import Pinecone, ServerlessSpec
 from langchain_openai import OpenAIEmbeddings
 from src.utils.logger import get_logger
-from src.config.settings import config
+from src.settings import config
 from ..base import VectorStore
 from .models import Company, CompanyEvaluation
 import asyncio

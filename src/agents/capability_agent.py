@@ -7,7 +7,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langgraph.graph import StateGraph, MessagesState
 from src.profile.manager import ProfileManager
-from src.config.settings import config
+from src.settings import config
 from langsmith import traceable
 from src.utils.logger import get_logger
 
