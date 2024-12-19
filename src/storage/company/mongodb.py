@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 class MongoDBCompanyStorage(CompanyStorage):
     """MongoDB implementation of company storage"""
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, is_test: bool = False):
         """Initialize MongoDB connection"""
         try:
             self.client = MongoClient(config["MONGODB_URI"])
@@ -31,7 +31,12 @@ class MongoDBCompanyStorage(CompanyStorage):
             self.companies.create_index("industry")
             self.companies.create_index("stage")
 
-            logger.info(f"Connected to MongoDB database: {config['MONGODB_DB_NAME']}")
+            # Use test database if is_test is True
+            self.db_name = "career-crew-test" if is_test else "career-crew"
+            self.db = self.client[self.db_name]
+            self.collection = self.db["companies"]
+
+            logger.info(f"Connected to MongoDB database: {self.db_name}")
         except Exception as e:
             logger.error(f"Failed to initialize MongoDB connection: {str(e)}")
             raise StorageError(f"MongoDB initialization failed: {str(e)}")
@@ -156,9 +161,14 @@ class MongoDBCompanyStorage(CompanyStorage):
 
     async def cleanup_test_data(self) -> None:
         """Clean up test data from MongoDB - only used in test environment"""
+        if not self.db_name.endswith("-test"):
+            logger.warning("Attempted to cleanup non-test database! Aborting.")
+            return None
+
         try:
-            # Delete all documents in the test database
-            result = self.collection.delete_many({})  # No await here
+            result = self.collection.delete_many({})
             logger.info(f"Successfully cleaned up test documents from MongoDB")
         except Exception as e:
             logger.error(f"Failed to cleanup test data: {str(e)}")
+
+        return None  # Explicit return

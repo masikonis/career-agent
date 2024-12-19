@@ -42,10 +42,6 @@ class PineconeCompanyIndex(CompanySearchIndex):
                 )
                 self.pinecone_index = self.pc.Index(self.index_name)
 
-            # Clean up test namespace
-            if namespace == "test":
-                self.cleanup_namespace()
-
             logger.info(
                 f"Connected to Pinecone index: {self.index_name} namespace: {namespace}"
             )
@@ -54,14 +50,22 @@ class PineconeCompanyIndex(CompanySearchIndex):
             logger.error(f"Failed to initialize Pinecone: {str(e)}")
             raise SearchIndexError(f"Pinecone initialization failed: {str(e)}")
 
-    def cleanup_namespace(self) -> None:
+    async def cleanup_namespace(self) -> None:
         """Clean up test namespace - only used in test environment"""
+        if self.namespace != "test":
+            logger.warning("Attempted to cleanup non-test namespace! Aborting.")
+            return None
+
         try:
-            # Delete all vectors in the namespace
             self.pinecone_index.delete(namespace=self.namespace, delete_all=True)
             logger.info(f"Successfully cleaned up namespace {self.namespace}")
         except Exception as e:
-            logger.error(f"Failed to cleanup namespace {self.namespace}: {str(e)}")
+            if "Namespace not found" in str(e):
+                logger.info(f"Namespace {self.namespace} already clean")
+            else:
+                logger.error(f"Failed to cleanup namespace {self.namespace}: {str(e)}")
+
+        return None  # Explicit return to avoid NoneType error
 
     async def _get_embedding(self, text: str) -> List[float]:
         """Generate embedding vector for text using LangChain"""

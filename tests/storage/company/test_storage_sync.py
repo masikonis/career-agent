@@ -21,24 +21,26 @@ logger = get_logger("company.test_storage_sync")
 
 @pytest_asyncio.fixture
 async def clean_test_env():
-    """Setup and cleanup test environment"""
-    # Setup
-    mongo_storage = MongoDBCompanyStorage(config)
+    # Create storage with test flag
+    mongo_storage = MongoDBCompanyStorage(config, is_test=True)
     pinecone_index = PineconeCompanyIndex(namespace="test")
+
+    # Cleanup before and after tests
+    await mongo_storage.cleanup_test_data()
+    await pinecone_index.cleanup_namespace()
 
     yield
 
-    # Cleanup
     await mongo_storage.cleanup_test_data()
-    pinecone_index.cleanup_namespace()
+    await pinecone_index.cleanup_namespace()
 
 
 @pytest.mark.asyncio
 async def test_mongodb_pinecone_sync(clean_test_env):
     """Test that changes in MongoDB are reflected in Pinecone search index"""
     try:
-        # Initialize components with test namespace
-        mongo_storage = MongoDBCompanyStorage(config)
+        # Initialize components with test flag
+        mongo_storage = MongoDBCompanyStorage(config, is_test=True)
         pinecone_index = PineconeCompanyIndex(namespace="test")
         storage_manager = CompanyStorageManager(mongo_storage, pinecone_index)
 
