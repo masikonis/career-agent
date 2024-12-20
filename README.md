@@ -21,4 +21,3 @@ A personal crew of AI agents that help me spot opportunities, track industry tre
 [![Pytest](https://img.shields.io/badge/Pytest-0A9B3D?style=for-the-badge&logo=pytest&logoColor=white)](https://pytest.org/)
 [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/features/actions)
 [![Modal](https://img.shields.io/badge/Modal-00A3E0?style=for-the-badge&logo=modal&logoColor=white)](https://modal.com/)
-[![Sentry](https://img.shields.io/badge/Sentry-362D59?style=for-the-badge&logo=sentry&logoColor=white)](https://sentry.io/)
