@@ -1,4 +1,5 @@
-from prefect import flow, get_run_context, task
+from prefect import flow, task
+from prefect.context import get_run_context
 
 from src.utils.logger import get_logger
 
