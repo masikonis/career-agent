@@ -1,15 +1,15 @@
 from datetime import timedelta
 
 from prefect import flow
-from prefect.filesystems import GitHub
+from prefect_github import GitHubRepository
 
 from src.workflows.job_ads_scraping import job_ads_scraping_flow
 
 if __name__ == "__main__":
     # First, create and save the GitHub block
-    github_block = GitHub(
+    github_block = GitHubRepository(
         name="career-crew-repo",
-        repository="https://github.com/masikonis/career-crew.git",
+        repository="https://github.com/nerijus-masikonis/career-crew.git",
         reference="main",
     )
     github_block.save()
