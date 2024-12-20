@@ -1,24 +1,9 @@
-from datetime import timedelta
-
-from prefect import flow
-from prefect_github import GitHubRepository
-
 from src.workflows.job_ads_scraping import job_ads_scraping_flow
 
-if __name__ == "__main__":
-    # First, create and save the GitHub block
-    github_block = GitHubRepository(
-        name="career-crew-repo",
-        repository_url="https://github.com/masikonis/career-crew.git",
-        reference="main",
-    )
-    github_block.save()
-
-    # Then use it in the deployment
-    deployment = job_ads_scraping_flow.to_deployment(
-        name="job-ads-scraping",
-        work_pool_name="career-crew-pool",
-        interval=timedelta(hours=4),
-        storage=github_block,
-    )
-    deployment.apply()
+job_ads_scraping_flow.from_source(
+    source="https://github.com/masikonis/career-crew.git",
+    entrypoint="src/workflows/job_ads_scraping.py:job_ads_scraping_flow",
+).deploy(
+    name="job-ads-scraping",
+    work_pool_name="career-crew-pool",
+)
