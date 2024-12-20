@@ -8,6 +8,11 @@ if __name__ == "__main__":
     deployment = job_ads_scraping_flow.to_deployment(
         name="job-ads-scraping",
         work_pool_name="career-crew-pool",
-        interval=timedelta(hours=4),
+        interval=timedelta(hours=24),
+        storage={
+            "type": "github",
+            "repository": "masikonis/career-crew",
+            "reference": "main",
+        },
     )
     deployment.apply()
