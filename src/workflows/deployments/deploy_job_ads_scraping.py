@@ -9,7 +9,7 @@ if __name__ == "__main__":
     # First, create and save the GitHub block
     github_block = GitHubRepository(
         name="career-crew-repo",
-        repository="https://github.com/nerijus-masikonis/career-crew.git",
+        repository_url="https://github.com/masikonis/career-crew.git",
         reference="main",
     )
     github_block.save()
