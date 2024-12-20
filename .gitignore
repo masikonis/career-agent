@@ -76,3 +76,6 @@ static/*
 src/frontend/node_modules/
 src/frontend/.env
 package-lock.json
+
+# Modal
+.modal.toml
