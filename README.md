@@ -13,7 +13,6 @@ A personal crew of AI agents that help me spot opportunities, track industry tre
 [![Prefect](https://img.shields.io/badge/Prefect-00A3E0?style=for-the-badge&logo=prefect&logoColor=white)](https://www.prefect.io/)
 [![Modal](https://img.shields.io/badge/Modal-00A3E0?style=for-the-badge&logo=modal&logoColor=white)](https://modal.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-[![Pinecone](https://img.shields.io/badge/Pinecone-00A3E0?style=for-the-badge&logo=pinecone&logoColor=white)](https://www.pinecone.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)

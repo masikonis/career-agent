@@ -24,63 +24,26 @@ class CompanyStorageManager(BaseStorageManager[Company]):
     Coordinates between primary storage and search index.
     """
 
-    def __init__(self, storage: CompanyStorage, search_index: CompanySearchIndex):
-        super().__init__(storage, search_index)
-        self.company_storage = storage  # Type-specific reference
-        self.company_search = search_index  # Type-specific reference
-
-    def _create_metadata(self, company: Company) -> Metadata:
-        """Create metadata for company indexing"""
-        # Convert string values back to enums if needed
-        industry = (
-            company.industry
-            if isinstance(company.industry, CompanyIndustry)
-            else CompanyIndustry(company.industry)
-        )
-        stage = (
-            company.stage
-            if isinstance(company.stage, CompanyStage)
-            else CompanyStage(company.stage)
-        )
-
-        return {
-            "name": company.name,
-            "description": company.description,
-            "industry": industry.value,
-            "stage": stage.value,
-            "created_at": str(company.created_at),
-            "updated_at": str(company.updated_at),
-            "entity_type": "company",
-        }
-
-    async def find_similar_companies(
-        self, company_id: EntityID, limit: int = 10
-    ) -> List[Company]:
-        """Find companies similar to the given company"""
-        try:
-            return await self.company_search.search_similar(company_id, limit)
-        except Exception as e:
-            logger.error(f"Failed to find similar companies: {str(e)}")
-            raise StorageOperationError("similar_search", str(e))
+    def __init__(self, storage: CompanyStorage):
+        self.company_storage = storage
+        logger = get_logger(__name__)
 
     async def search_companies(
         self, query: str, filters: Optional[CompanyFilters] = None, limit: int = 10
     ) -> List[Company]:
-        """Search companies with optional filters"""
-        try:
-            # Get IDs from search index with filters
-            entity_ids = await self.company_search.search(query)
+        """Search companies (placeholder until MongoDB vector search is implemented)"""
+        # TODO: Implement MongoDB vector search
+        logger.info("Vector search not yet implemented, returning all companies")
+        # Temporary: Return all companies
+        return await self.company_storage.get_all()
 
-            # Fetch full company data
-            companies = []
-            for entity_id in entity_ids:
-                if company := await self.get(entity_id):
-                    companies.append(company)
-
-            return companies
-        except Exception as e:
-            logger.error(f"Failed to search companies: {str(e)}")
-            raise StorageOperationError("company_search", str(e))
+    async def find_similar_companies(
+        self, company_id: EntityID, limit: int = 10
+    ) -> List[Company]:
+        """Find similar companies (placeholder until MongoDB vector search is implemented)"""
+        # TODO: Implement MongoDB vector search for similarity
+        logger.info("Similar company search not yet implemented")
+        return []
 
     async def add_evaluation(
         self, company_id: EntityID, evaluation: CompanyEvaluation
