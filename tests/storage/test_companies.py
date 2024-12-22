@@ -5,13 +5,7 @@ import pytest_asyncio
 
 from src.storage.companies import CompanyStorage
 from src.storage.database import EntityNotFoundError, MongoDB, StorageError
-from src.storage.models import (
-    Company,
-    CompanyEvaluation,
-    CompanyFilters,
-    CompanyIndustry,
-    CompanyStage,
-)
+from src.storage.models import Company, CompanyFilters, CompanyIndustry, CompanyStage
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -34,7 +28,7 @@ async def storage():
 
 @pytest.mark.asyncio
 async def test_company_storage_operations(storage):
-    """Test complete company lifecycle including CRUD, search, and evaluations"""
+    """Test complete company lifecycle including CRUD and search"""
 
     # 1. Create test companies
     company1 = Company(
@@ -43,6 +37,7 @@ async def test_company_storage_operations(storage):
         industry=CompanyIndustry.SAAS,
         stage=CompanyStage.SEED,
         website="https://aitesting.com",
+        company_fit_score=0.85,
         created_at=datetime.now(),
         updated_at=datetime.now(),
     )
@@ -53,6 +48,7 @@ async def test_company_storage_operations(storage):
         industry=CompanyIndustry.EDTECH,
         stage=CompanyStage.SERIES_A,
         website="https://edtech.com",
+        company_fit_score=0.75,
         created_at=datetime.now() - timedelta(days=30),
         updated_at=datetime.now(),
     )
@@ -68,6 +64,7 @@ async def test_company_storage_operations(storage):
     assert stored_company is not None
     assert stored_company.name == "AI Testing Corp"
     assert stored_company.industry == CompanyIndustry.SAAS
+    assert stored_company.company_fit_score == 0.85
 
     # Test Update
     company1.description = "Updated AI testing solutions"
@@ -84,24 +81,14 @@ async def test_company_storage_operations(storage):
 
     # Test Filters
     filters = CompanyFilters(
-        industries=[CompanyIndustry.SAAS], stages=[CompanyStage.SEED]
+        industries=[CompanyIndustry.SAAS],
+        stages=[CompanyStage.SEED],
+        min_match_score=0.8,
     )
     filtered_results = await storage.search(filters=filters)
     assert len(filtered_results) == 1
     assert filtered_results[0].industry == CompanyIndustry.SAAS
-
-    # Test Evaluations
-    evaluation = CompanyEvaluation(
-        match_score=0.85,
-        skills_match=["python", "ai", "testing"],
-        notes="Great potential",
-    )
-    success = await storage.add_evaluation(company1_id, evaluation)
-    assert success is True
-
-    company_with_eval = await storage.get(company1_id)
-    assert len(company_with_eval.evaluations) == 1
-    assert company_with_eval.evaluations[0].match_score == 0.85
+    assert filtered_results[0].company_fit_score >= 0.8
 
     # Test Get All
     all_companies = await storage.get_all()

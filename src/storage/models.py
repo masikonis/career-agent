@@ -29,17 +29,6 @@ class CompanyIndustry(str, Enum):
     NON_DIGITAL = "non_digital"
 
 
-class CompanyEvaluation(BaseModel):
-    """Evaluation results for a company"""
-
-    match_score: float
-    skills_match: List[str]
-    notes: Optional[str] = None
-    evaluated_at: datetime = Field(default_factory=datetime.now)
-
-    model_config = ConfigDict(populate_by_name=True)
-
-
 class Company(BaseModel):
     """Represents a company entity"""
 
@@ -49,7 +38,7 @@ class Company(BaseModel):
     industry: CompanyIndustry
     stage: CompanyStage
     website: Optional[str] = None
-    evaluations: List[CompanyEvaluation] = Field(default_factory=list)
+    company_fit_score: Optional[float] = None
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
@@ -73,3 +62,28 @@ class CompanyFilters(BaseModel):
     min_match_score: Optional[float] = None
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
+
+
+class JobAd(BaseModel):
+    """Represents a job advertisement"""
+
+    id: Optional[str] = Field(None, alias="_id")
+    company_id: str
+    title: str
+    description: str
+    requirements: List[str]
+    salary_range: Optional[tuple[int, int]] = None
+
+    # Job status
+    posted_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    active: bool = True
+    archived_at: Optional[datetime] = None
+
+    # Evaluation fields
+    match_score: Optional[float] = None
+    skills_match: List[str] = Field(default_factory=list)
+    evaluation_notes: Optional[str] = None
+    evaluated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(populate_by_name=True)

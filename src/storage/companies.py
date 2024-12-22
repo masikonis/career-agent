@@ -7,7 +7,7 @@ from bson.errors import InvalidId
 from src.utils.logger import get_logger
 
 from .database import EntityNotFoundError, MongoDB, StorageError
-from .models import Company, CompanyEvaluation, CompanyFilters
+from .models import Company, CompanyFilters
 
 logger = get_logger(__name__)
 
@@ -90,37 +90,12 @@ class CompanyStorage:
         try:
             cursor = self.collection.find({})
             docs = await cursor.to_list(length=None)
-
-            # Convert ObjectId to string for each document
             for doc in docs:
                 doc["_id"] = str(doc["_id"])
-
             return [Company(**doc) for doc in docs]
         except Exception as e:
             logger.error(f"Failed to get all companies: {str(e)}")
             raise StorageError(f"Failed to get all companies: {str(e)}")
-
-    async def add_evaluation(
-        self, company_id: str, evaluation: CompanyEvaluation
-    ) -> bool:
-        try:
-            object_id = ObjectId(company_id)
-        except InvalidId:
-            raise StorageError(f"Invalid company ID format: {company_id}")
-
-        try:
-            eval_dict = evaluation.model_dump()
-            result = await self.collection.update_one(
-                {"_id": object_id}, {"$push": {"evaluations": eval_dict}}
-            )
-            if result.matched_count == 0:
-                raise EntityNotFoundError("Company", company_id)
-            return True
-        except EntityNotFoundError:
-            raise
-        except Exception as e:
-            logger.error(f"Failed to add evaluation: {str(e)}")
-            raise StorageError(f"Failed to add evaluation: {str(e)}")
 
     async def search(
         self,
@@ -144,7 +119,7 @@ class CompanyStorage:
                 if filters.stages:
                     filter_query["stage"] = {"$in": [s.value for s in filters.stages]}
                 if filters.min_match_score:
-                    filter_query["evaluations.match_score"] = {
+                    filter_query["company_fit_score"] = {
                         "$gte": filters.min_match_score
                     }
                 if filters.date_from or filters.date_to:
@@ -170,6 +145,10 @@ class CompanyStorage:
             logger.error(f"Search failed: {str(e)}")
             raise StorageError(f"Search failed: {str(e)}")
 
+    def _to_document(self, company: Company) -> dict:
+        """Convert Company object to MongoDB document"""
+        return company.model_dump(exclude={"id"}, by_alias=True, exclude_none=True)
+
     async def cleanup_test_data(self) -> None:
         """Clean up test data - only used in test environment"""
         if not isinstance(self.db, MongoDB) or not self.db.db.name.endswith("_test"):
@@ -181,44 +160,3 @@ class CompanyStorage:
             logger.info("Successfully cleaned up test documents")
         except Exception as e:
             logger.error(f"Failed to cleanup test data: {str(e)}")
-
-    def _to_document(self, company: Company) -> dict:
-        """Convert Company object to MongoDB document"""
-        return company.model_dump(exclude={"id"}, by_alias=True, exclude_none=True)
-
-    def _evaluation_to_dict(self, eval: CompanyEvaluation) -> dict:
-        """Convert CompanyEvaluation to dictionary"""
-        return eval.model_dump(exclude_none=True)
-
-    async def find_by_industry(self, industry: str) -> List[Company]:
-        """Find companies by industry"""
-        try:
-            cursor = self.collection.find({"industry": industry})
-            return [Company(**doc) for doc in await cursor.to_list(length=None)]
-        except Exception as e:
-            logger.error(f"Failed to find companies by industry: {str(e)}")
-            raise StorageError(f"Industry search failed: {str(e)}")
-
-    async def find_by_stage(self, stage: str) -> List[Company]:
-        """Find companies by stage"""
-        try:
-            cursor = self.collection.find({"stage": stage})
-            return [Company(**doc) for doc in await cursor.to_list(length=None)]
-        except Exception as e:
-            logger.error(f"Failed to find companies by stage: {str(e)}")
-            raise StorageError(f"Stage search failed: {str(e)}")
-
-    async def get_evaluations(self, company_id: str) -> List[CompanyEvaluation]:
-        """Get all evaluations for a company"""
-        try:
-            doc = await self.collection.find_one(
-                {"_id": ObjectId(company_id)}, {"evaluations": 1}
-            )
-            if doc and "evaluations" in doc:
-                return [
-                    CompanyEvaluation(**eval_data) for eval_data in doc["evaluations"]
-                ]
-            return []
-        except Exception as e:
-            logger.error(f"Failed to get evaluations: {str(e)}")
-            raise StorageError(f"Get evaluations failed: {str(e)}")
