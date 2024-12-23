@@ -12,9 +12,9 @@ from .models import Company, CompanyFilters
 logger = get_logger(__name__)
 
 
-class CompanyStorage:
+class CompanyRepository:
     @classmethod
-    async def create_storage(cls, is_test: bool = False) -> "CompanyStorage":
+    async def create_repository(cls, is_test: bool = False) -> "CompanyRepository":
         db = await MongoDB.get_instance(is_test)
         return cls(db)
 

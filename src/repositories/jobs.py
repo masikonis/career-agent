@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Optional
 
 from bson import ObjectId
@@ -12,9 +12,9 @@ from .models import JobAd
 logger = get_logger(__name__)
 
 
-class JobStorage:
+class JobRepository:
     @classmethod
-    async def create_storage(cls, is_test: bool = False) -> "JobStorage":
+    async def create_repository(cls, is_test: bool = False) -> "JobRepository":
         db = await MongoDB.get_instance(is_test)
         return cls(db)
 

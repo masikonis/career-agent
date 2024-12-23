@@ -3,36 +3,36 @@ from datetime import datetime, timedelta
 import pytest
 import pytest_asyncio
 
-from src.storage.database import EntityNotFoundError, MongoDB, StorageError
-from src.storage.jobs import JobStorage
-from src.storage.models import JobAd
+from src.repositories.database import EntityNotFoundError, MongoDB, StorageError
+from src.repositories.jobs import JobRepository
+from src.repositories.models import JobAd
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 @pytest_asyncio.fixture
-async def storage():
+async def repository():
     """Create a test storage instance with proper test database"""
     # Reset MongoDB instance to ensure clean state
     await MongoDB.reset_instance()
 
     # Get storage instance with test flag
     db = await MongoDB.get_instance(is_test=True)
-    storage = JobStorage(db)
+    repository = JobRepository(db)
 
     # Ensure we're using test database
-    assert "test" in storage.db.db.name.lower(), "Not using test database!"
+    assert "test" in repository.db.db.name.lower(), "Not using test database!"
 
-    yield storage
+    yield repository
 
     # Cleanup after tests
-    await storage.collection.delete_many({})
+    await repository.collection.delete_many({})
     await MongoDB.reset_instance()
 
 
 @pytest.mark.asyncio
-async def test_job_storage_operations(storage):
+async def test_job_repository_operations(repository):
     """Test complete job lifecycle including CRUD and evaluation"""
 
     # 1. Create test jobs
@@ -55,19 +55,19 @@ async def test_job_storage_operations(storage):
     )
 
     # Test Create
-    job1_id = await storage.create(job1)
-    job2_id = await storage.create(job2)
+    job1_id = await repository.create(job1)
+    job2_id = await repository.create(job2)
     assert job1_id is not None
     assert job2_id is not None
 
     # Test Read
-    stored_job = await storage.get(job1_id)
+    stored_job = await repository.get(job1_id)
     assert stored_job is not None
     assert stored_job.title == "Senior Python Developer"
     assert stored_job.requirements == ["Python", "FastAPI", "MongoDB"]
 
     # Test Evaluation
-    success = await storage.update_evaluation(
+    success = await repository.update_evaluation(
         job1_id,
         match_score=0.85,
         skills_match=["Python", "FastAPI"],
@@ -75,53 +75,55 @@ async def test_job_storage_operations(storage):
     )
     assert success is True
 
-    evaluated_job = await storage.get(job1_id)
+    evaluated_job = await repository.get(job1_id)
     assert evaluated_job.match_score == 0.85
     assert evaluated_job.skills_match == ["Python", "FastAPI"]
     assert evaluated_job.evaluation_notes == "Good match for Python skills"
     assert evaluated_job.evaluated_at is not None
 
     # Test Get Company Jobs
-    company_jobs = await storage.get_company_jobs("company123")
+    company_jobs = await repository.get_company_jobs("company123")
     assert len(company_jobs) == 1
     assert company_jobs[0].title == "Senior Python Developer"
 
     # Test Best Matches
-    await storage.update_evaluation(
+    await repository.update_evaluation(
         job2_id,
         match_score=0.95,
         skills_match=["Python"],
         notes="Excellent ML opportunity",
     )
 
-    best_matches = await storage.get_best_matches(min_score=0.8)
+    best_matches = await repository.get_best_matches(min_score=0.8)
     assert len(best_matches) == 2
     assert best_matches[0].match_score >= best_matches[1].match_score  # Sorted by score
 
     # Test Archive
-    success = await storage.archive_job(job1_id)
+    success = await repository.archive_job(job1_id)
     assert success is True
 
     # Verify archived job not in active jobs
-    active_jobs = await storage.get_company_jobs("company123", include_archived=False)
+    active_jobs = await repository.get_company_jobs(
+        "company123", include_archived=False
+    )
     assert len(active_jobs) == 0
 
     # But should be in all jobs
-    all_jobs = await storage.get_company_jobs("company123", include_archived=True)
+    all_jobs = await repository.get_company_jobs("company123", include_archived=True)
     assert len(all_jobs) == 1
 
 
 @pytest.mark.asyncio
-async def test_error_handling(storage):
+async def test_error_handling(repository):
     """Test error cases"""
 
     # Invalid ID format
     with pytest.raises(StorageError):
-        await storage.get("invalid-id")
+        await repository.get("invalid-id")
 
     # Non-existent ID
     with pytest.raises(EntityNotFoundError):
-        await storage.get("507f1f77bcf86cd799439011")
+        await repository.get("507f1f77bcf86cd799439011")
 
     # Invalid evaluation score
     job = JobAd(
@@ -130,10 +132,10 @@ async def test_error_handling(storage):
         description="Test description",
         requirements=["Python"],
     )
-    job_id = await storage.create(job)
+    job_id = await repository.create(job)
 
     with pytest.raises(ValueError):
-        await storage.update_evaluation(
+        await repository.update_evaluation(
             job_id,
             match_score=1.5,  # Should be between 0 and 1
             skills_match=["Python"],
@@ -142,7 +144,7 @@ async def test_error_handling(storage):
 
 
 @pytest.mark.asyncio
-async def test_job_lifecycle(storage):
+async def test_job_lifecycle(repository):
     """Test job lifecycle with evaluations and archiving"""
 
     # Create job
@@ -154,34 +156,34 @@ async def test_job_lifecycle(storage):
         active=True,
     )
 
-    job_id = await storage.create(job)
+    job_id = await repository.create(job)
 
     # Initial evaluation
-    await storage.update_evaluation(
+    await repository.update_evaluation(
         job_id, match_score=0.7, skills_match=["Python"], notes="Initial evaluation"
     )
 
     # Re-evaluate
-    await storage.update_evaluation(
+    await repository.update_evaluation(
         job_id,
         match_score=0.8,
         skills_match=["Python", "JavaScript"],
         notes="Updated evaluation",
     )
 
-    stored_job = await storage.get(job_id)
+    stored_job = await repository.get(job_id)
     assert stored_job.match_score == 0.8
     assert len(stored_job.skills_match) == 2
 
     # Archive
-    await storage.archive_job(job_id)
-    archived_job = await storage.get(job_id)
+    await repository.archive_job(job_id)
+    archived_job = await repository.get(job_id)
     assert archived_job.active is False
     assert archived_job.archived_at is not None
 
 
 @pytest.mark.asyncio
-async def test_cleanup(storage):
+async def test_cleanup(repository):
     """Test cleanup functionality"""
 
     # Create test jobs
@@ -196,9 +198,9 @@ async def test_cleanup(storage):
     ]
 
     for job in jobs:
-        await storage.create(job)
+        await repository.create(job)
 
     # Verify cleanup
-    await storage.cleanup_test_data()
-    all_jobs = await storage.get_company_jobs("company0", include_archived=True)
+    await repository.cleanup_test_data()
+    all_jobs = await repository.get_company_jobs("company0", include_archived=True)
     assert len(all_jobs) == 0
