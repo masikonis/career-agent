@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from bson import ObjectId
 from bson.errors import InvalidId
+from langchain_openai import OpenAIEmbeddings
 
 from src.utils.logger import get_logger
 
@@ -21,10 +22,21 @@ class JobRepository:
     def __init__(self, db: MongoDB):
         self.db = db
         self.collection = self.db.db.jobs
+        self.embeddings = OpenAIEmbeddings()
+
+    async def _generate_embeddings(self, text: str) -> List[float]:
+        """Generate embeddings for text using OpenAI"""
+        return await self.embeddings.aembed_query(text)
 
     async def create(self, job: JobAd) -> str:
-        """Create a new job ad"""
+        """Create a new job ad with embeddings"""
         try:
+            # Generate embeddings
+            job.description_embedding = await self._generate_embeddings(job.description)
+            job.requirements_embedding = await self._generate_embeddings(
+                " ".join(job.requirements)
+            )
+
             job_dict = self._to_document(job)
             result = await self.collection.insert_one(job_dict)
             logger.info(f"Created job ad with ID: {result.inserted_id}")
@@ -173,3 +185,90 @@ class JobRepository:
             logger.info("Successfully cleaned up test job documents")
         except Exception as e:
             logger.error(f"Failed to cleanup test data: {str(e)}")
+
+    async def search_similar(self, description: str, limit: int = 10) -> List[JobAd]:
+        """Mock vector search by using text search instead"""
+        try:
+            # Split search terms and create regex pattern
+            terms = description.lower().split()
+            pipeline = [
+                {
+                    "$match": {
+                        "$or": [
+                            # Search in description
+                            {"description": {"$regex": term, "$options": "i"}}
+                            for term in terms
+                        ]
+                        + [
+                            # Search in requirements
+                            {"requirements": {"$regex": term, "$options": "i"}}
+                            for term in terms
+                        ]
+                    }
+                },
+                # Add scoring based on matches
+                {
+                    "$addFields": {
+                        "score": {
+                            "$add": [
+                                # Score for description matches
+                                {
+                                    "$sum": [
+                                        {
+                                            "$cond": [
+                                                {
+                                                    "$regexMatch": {
+                                                        "input": "$description",
+                                                        "regex": term,
+                                                        "options": "i",
+                                                    }
+                                                },
+                                                1,
+                                                0,
+                                            ]
+                                        }
+                                        for term in terms
+                                    ]
+                                },
+                                # Score for requirement matches (weighted higher)
+                                {
+                                    "$multiply": [
+                                        {
+                                            "$size": {
+                                                "$filter": {
+                                                    "input": "$requirements",
+                                                    "cond": {
+                                                        "$or": [
+                                                            {
+                                                                "$regexMatch": {
+                                                                    "input": "$$this",
+                                                                    "regex": term,
+                                                                    "options": "i",
+                                                                }
+                                                            }
+                                                            for term in terms
+                                                        ]
+                                                    },
+                                                }
+                                            }
+                                        },
+                                        2,  # Weight requirement matches higher
+                                    ]
+                                },
+                            ]
+                        }
+                    }
+                },
+                {"$sort": {"score": -1}},  # Sort by score descending
+                {"$limit": limit},
+            ]
+
+            results = []
+            async for doc in self.collection.aggregate(pipeline):
+                doc["_id"] = str(doc["_id"])
+                results.append(JobAd(**doc))
+
+            return results
+        except Exception as e:
+            logger.error(f"Search failed: {str(e)}")
+            raise StorageError(f"Search failed: {str(e)}")

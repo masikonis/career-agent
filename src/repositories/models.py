@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 
 class CompanyStage(str, Enum):
@@ -30,28 +30,30 @@ class CompanyIndustry(str, Enum):
 
 
 class Company(BaseModel):
-    """Represents a company entity"""
+    """Represents a company"""
 
     id: Optional[str] = Field(None, alias="_id")
-    name: str = Field(..., min_length=1)
-    description: str = Field(..., min_length=1)
+    name: str
+    description: str
     industry: CompanyIndustry
     stage: CompanyStage
-    website: Optional[str] = None
-    company_fit_score: Optional[float] = None
+    website: str
+    company_fit_score: float = 0.0
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
-    @field_validator("website")
-    def validate_website(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and not v.startswith(("http://", "https://")):
-            raise ValueError("Website URL must start with http:// or https://")
-        return v
+    # Vector search field
+    description_embedding: Optional[List[float]] = None
 
-    model_config = ConfigDict(
-        populate_by_name=True,
-        json_schema_extra={"json_encoders": {datetime: lambda v: v.isoformat()}},
-    )
+    @field_validator("website")
+    def validate_website(cls, v):
+        try:
+            HttpUrl(v)
+            return v
+        except Exception:
+            raise ValueError("Invalid website URL format")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class CompanyFilters(BaseModel):
@@ -85,5 +87,9 @@ class JobAd(BaseModel):
     skills_match: List[str] = Field(default_factory=list)
     evaluation_notes: Optional[str] = None
     evaluated_at: Optional[datetime] = None
+
+    # Vector search fields
+    description_embedding: Optional[List[float]] = None
+    requirements_embedding: Optional[List[float]] = None
 
     model_config = ConfigDict(populate_by_name=True)

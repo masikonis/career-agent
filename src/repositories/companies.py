@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from bson import ObjectId
 from bson.errors import InvalidId
+from langchain_openai import OpenAIEmbeddings
 
 from src.utils.logger import get_logger
 
@@ -21,10 +22,20 @@ class CompanyRepository:
     def __init__(self, db: MongoDB):
         self.db = db
         self.collection = self.db.db.companies
+        self.embeddings = OpenAIEmbeddings()
+
+    async def _generate_embeddings(self, text: str) -> List[float]:
+        """Generate embeddings for text using OpenAI"""
+        return await self.embeddings.aembed_query(text)
 
     async def create(self, company: Company) -> str:
-        """Create a new company"""
+        """Create a new company with embeddings"""
         try:
+            # Generate embeddings only for description
+            company.description_embedding = await self._generate_embeddings(
+                company.description
+            )
+
             company_dict = self._to_document(company)
             result = await self.collection.insert_one(company_dict)
             logger.info(f"Created company with ID: {result.inserted_id}")
@@ -141,6 +152,40 @@ class CompanyRepository:
                 doc["_id"] = str(doc["_id"])
 
             return [Company(**doc) for doc in docs]
+        except Exception as e:
+            logger.error(f"Search failed: {str(e)}")
+            raise StorageError(f"Search failed: {str(e)}")
+
+    async def search_similar(
+        self, description: str, limit: int = 10, min_score: Optional[float] = None
+    ) -> List[Company]:
+        """Mock vector search by using text search instead"""
+        try:
+            # Split search terms and create regex pattern
+            terms = description.lower().split()
+            pipeline = [
+                {
+                    "$match": {
+                        "$or": [
+                            {"description": {"$regex": term, "$options": "i"}}
+                            for term in terms
+                        ]
+                    }
+                },
+                {"$limit": limit},
+            ]
+
+            if min_score is not None:
+                pipeline.insert(
+                    1, {"$match": {"company_fit_score": {"$gte": min_score}}}
+                )
+
+            results = []
+            async for doc in self.collection.aggregate(pipeline):
+                doc["_id"] = str(doc["_id"])
+                results.append(Company(**doc))
+
+            return results
         except Exception as e:
             logger.error(f"Search failed: {str(e)}")
             raise StorageError(f"Search failed: {str(e)}")

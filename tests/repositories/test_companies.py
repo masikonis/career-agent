@@ -189,6 +189,7 @@ async def test_error_handling(repository):
         description="Test",
         industry=CompanyIndustry.SAAS,
         stage=CompanyStage.SEED,
+        website="https://ghost.corp",
     )
     success = await repository.update("507f1f77bcf86cd799439011", company)
     assert success is False
@@ -263,3 +264,43 @@ async def test_search_and_filters(repository):
     for company_id in company_ids:
         await repository.delete(company_id)
     logger.info("Test companies deleted")
+
+
+@pytest.mark.asyncio
+async def test_vector_search(repository):
+    """Test vector search functionality"""
+    logger.info("Starting vector search test")
+
+    # Create test companies with diverse descriptions
+    companies = [
+        Company(
+            name="AI Solutions",
+            description="We build cutting-edge artificial intelligence solutions for enterprise customers",
+            industry=CompanyIndustry.SAAS,
+            stage=CompanyStage.SEED,
+            website="https://ai-solutions.com",
+        ),
+        Company(
+            name="Data Analytics Co",
+            description="Advanced data analytics and business intelligence platform",
+            industry=CompanyIndustry.SAAS,
+            stage=CompanyStage.SERIES_A,
+            website="https://data-analytics.com",
+        ),
+    ]
+
+    for company in companies:
+        await repository.create(company)
+
+    # Test semantic search
+    results = await repository.search_similar(
+        description="Looking for companies that work with enterprise AI", limit=2
+    )
+    assert len(results) > 0
+    assert results[0].name == "AI Solutions"  # Most relevant should be first
+
+    # Test combined with score filter
+    results = await repository.search_similar(
+        description="AI and analytics companies", limit=2, min_score=0.7
+    )
+    assert all(c.company_fit_score >= 0.7 for c in results)

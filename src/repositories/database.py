@@ -53,13 +53,10 @@ class MongoDB:
 
     async def _create_indexes(self):
         """Create all required indexes"""
+        # Regular indexes
         await self.db.companies.create_index("name")
         await self.db.companies.create_index("industry")
         await self.db.companies.create_index("stage")
-        # Add text index for search
-        await self.db.companies.create_index(
-            [("name", "text"), ("description", "text")]
-        )
 
     async def close(self):
         self.client.close()

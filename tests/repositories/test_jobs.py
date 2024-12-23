@@ -204,3 +204,42 @@ async def test_cleanup(repository):
     await repository.cleanup_test_data()
     all_jobs = await repository.get_company_jobs("company0", include_archived=True)
     assert len(all_jobs) == 0
+
+
+@pytest.mark.asyncio
+async def test_vector_search(repository):
+    """Test vector search functionality for jobs"""
+    logger.info("Starting vector search test")
+
+    # Create test jobs with diverse descriptions
+    jobs = [
+        JobAd(
+            company_id="company123",
+            title="AI Engineer",
+            description="Developing machine learning models and AI solutions using PyTorch and TensorFlow",
+            requirements=["Python", "PyTorch", "TensorFlow"],
+        ),
+        JobAd(
+            company_id="company456",
+            title="Backend Developer",
+            description="Building scalable backend services using Python and FastAPI",
+            requirements=["Python", "FastAPI", "MongoDB"],
+        ),
+    ]
+
+    for job in jobs:
+        await repository.create(job)
+
+    # Test semantic search
+    results = await repository.search_similar(
+        description="Looking for AI and machine learning positions", limit=2
+    )
+    assert len(results) > 0
+    assert results[0].title == "AI Engineer"  # Most relevant should be first
+
+    # Test search by requirements
+    results = await repository.search_similar(
+        description="Need experience with FastAPI and MongoDB", limit=2
+    )
+    assert len(results) > 0
+    assert results[0].title == "Backend Developer"
