@@ -1,7 +1,56 @@
-- Always use the get_logger function from src/utils/logger.py for logging.
-- Always use models from config['LLM_MODELS'] instead of hardcoded model names.
-- Use LangChain's high-level interfaces when possible for simplicity.
-- Keep MongoDB queries simple - avoid complex aggregations when possible.
-- Use Material-UI (MUI) components instead of custom CSS when possible.
-- This is a personal project - favor simplicity over complexity. Don't over-engineer - implement only what you need.
-- Always place new code logically within the file, ensuring it follows a coherent order rather than being added randomly or at the bottom.
+Project Philosophy
+- Maintain simplicity - this is a personal project, not an enterprise application
+- Favor incremental improvements over large rewrites
+- Follow "You Aren't Gonna Need It" (YAGNI) principle - implement only what's necessary
+- Use latest stable versions of dependencies and follow their official documentation
+
+Code Structure and Organization
+- Group related functionality into modules
+- Keep files focused and single-purpose
+- Place new code logically within files, maintaining clear section ordering
+
+Python Best Practices
+- Use type hints consistently
+- Import from src/utils/logger.py for all logging
+- Utilize environment variables from config.py, especially LLM_MODELS
+- Follow PEP 8 style guidelines
+- Use dataclasses for data structures when appropriate
+
+LangChain Usage
+- Prefer high-level interfaces over custom implementations
+- Use LangChain's built-in tools and agents when possible
+- Implement proper error handling for LLM calls
+- Use LangSmith for debugging and monitoring
+- Keep agent prompts simple and focused
+
+Database (MongoDB)
+- Keep queries simple and readable
+- Use appropriate indexes for frequent queries
+- Avoid complex aggregations when simple queries suffice
+- Include proper error handling for database operations
+- Use type hints for database models
+
+FastAPI Backend
+- Keep endpoints focused and single-purpose
+- Use Pydantic models for request/response validation
+- Implement proper error handling and status codes
+- Keep route handlers clean and delegate complex logic to services
+
+Frontend (React/TypeScript)
+- Use functional components with hooks
+- Leverage Material-UI (MUI) components instead of custom CSS
+- Keep components simple and focused
+- Use Recoil for state management judiciously
+- Follow React best practices for performance
+
+Testing
+- Write meaningful tests focusing on core functionality
+- Use pytest fixtures effectively
+- Mock external services in tests
+- Keep test files organized parallel to source files
+
+Error Handling and Logging
+- Use appropriate log levels (debug, info, warning, error)
+- Include relevant context in error messages
+- Implement proper error boundaries in React
+- Handle API errors gracefully
