@@ -6,7 +6,7 @@ from bson import ObjectId
 from src.utils.logger import get_logger
 
 from .base import BaseRepository
-from .database import MongoDB, RepositoryError
+from .database import EntityNotFoundError, MongoDB, RepositoryError
 from .models import Company, CompanyFilters, CompanyStage
 
 logger = get_logger(__name__)
@@ -31,6 +31,34 @@ class CompanyRepository(BaseRepository[Company]):
         except Exception as e:
             logger.error(f"Failed to create {self._entity_name}: {str(e)}")
             raise RepositoryError(f"{self._entity_name} creation failed: {str(e)}")
+
+    async def update(self, company_id: str, company: Company) -> bool:
+        """Update company with stage transition validation"""
+        try:
+            # First get the current company state
+            try:
+                current_company = await self.get(company_id)
+            except EntityNotFoundError:
+                logger.warning(f"Cannot update non-existent company: {company_id}")
+                return False
+
+            # Validate stage transition
+            if current_company.stage != company.stage:
+                if self._is_invalid_stage_transition(
+                    current_company.stage, company.stage
+                ):
+                    logger.error(
+                        f"Invalid stage transition from {current_company.stage} to {company.stage}"
+                    )
+                    raise ValueError(
+                        f"Cannot transition company from {current_company.stage} to {company.stage}"
+                    )
+
+            company_dict = self._to_document(company)
+            return await super().update(company_id, company_dict)
+        except Exception as e:
+            logger.error(f"Failed to update {self._entity_name}: {str(e)}")
+            raise
 
     # === Search Operations ===
     async def search(
@@ -100,30 +128,6 @@ class CompanyRepository(BaseRepository[Company]):
             if filters.date_to:
                 filter_query["created_at"]["$lte"] = filters.date_to
         return filter_query
-
-    async def update(self, company_id: str, company: Company) -> bool:
-        """Update company with stage transition validation"""
-        try:
-            # First get the current company state
-            current_company = await self.get(company_id)
-
-            # Validate stage transition
-            if current_company.stage != company.stage:
-                if self._is_invalid_stage_transition(
-                    current_company.stage, company.stage
-                ):
-                    logger.error(
-                        f"Invalid stage transition from {current_company.stage} to {company.stage}"
-                    )
-                    raise ValueError(
-                        f"Cannot transition company from {current_company.stage} to {company.stage}"
-                    )
-
-            company_dict = self._to_document(company)
-            return await super().update(company_id, company_dict)
-        except Exception as e:
-            logger.error(f"Failed to update {self._entity_name}: {str(e)}")
-            raise
 
     def _is_invalid_stage_transition(
         self, current_stage: CompanyStage, new_stage: CompanyStage
