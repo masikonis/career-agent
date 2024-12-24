@@ -1,9 +1,12 @@
+import asyncio
+import json
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 from zenrows import ZenRowsClient
 
+from src.cache import CacheManager
 from src.config import config
 from src.utils.logger import get_logger
 
@@ -34,6 +37,7 @@ class ZenrowsScraper:
         self.options = options or {}
         self.client = ZenRowsClient(self.api_key)
         self.logger = get_logger(__name__)
+        self.cache = CacheManager()
 
     def _validate_url(self, url: str) -> bool:
         """Validate URL format"""
@@ -48,11 +52,19 @@ class ZenrowsScraper:
         """Prepare request parameters by merging defaults with custom params"""
         params = {
             "js_render": True,  # Enable JavaScript rendering by default
-            "wait": 5,  # Wait for page load
+            "wait": kwargs.get(
+                "wait", 5
+            ),  # Use custom wait if provided, otherwise default to 5
             **self.options,  # Apply instance options
             **kwargs,  # Apply request-specific options
         }
         return params
+
+    def _generate_cache_key(self, url: str, params: Dict[str, Any]) -> str:
+        """Generate a unique cache key based on URL and parameters"""
+        # Serialize the parameters to ensure consistent ordering
+        params_str = json.dumps(params, sort_keys=True)
+        return f"{url}:{params_str}"
 
     async def scrape(self, url: str, retries: int = 3, **kwargs) -> ScraperResponse:
         """Scrape data from given URL using ZenRows
@@ -73,14 +85,27 @@ class ZenrowsScraper:
             raise ValueError(f"Invalid URL: {url}")
 
         params = self._prepare_request_params(**kwargs)
+        cache_key = self._generate_cache_key(url, params)
+
+        # Check cache first
+        cached_response = self.cache.get(cache_key)
+        if cached_response:
+            self.logger.info(
+                f"Returning cached response for {url} with params {params}"
+            )
+            return cached_response  # Return the cached response directly
+
         last_error = None
 
         for attempt in range(retries):
             try:
-                self.logger.info(f"Scraping {url} (attempt {attempt + 1}/{retries})")
+                self.logger.info(
+                    f"Scraping {url} (attempt {attempt + 1}/{retries}) with params {params}"
+                )
                 response = self.client.get(url, params=params)
 
-                return ScraperResponse(
+                # Create ScraperResponse object
+                scraper_response = ScraperResponse(
                     html=response.text,
                     status=response.status_code,
                     url=url,
@@ -90,6 +115,12 @@ class ZenrowsScraper:
                         "attempt": attempt + 1,
                     },
                 )
+
+                # Cache the response
+                self.cache.set(
+                    cache_key, scraper_response
+                )  # Store the response in cache
+                return scraper_response  # Return the new response
 
             except Exception as e:
                 last_error = str(e)
@@ -114,8 +145,6 @@ class ZenrowsScraper:
         Returns:
             List of ScraperResponse objects
         """
-        results = []
-        for url in urls:
-            result = await self.scrape(url, **kwargs)
-            results.append(result)
+        tasks = [self.scrape(url, **kwargs) for url in urls]
+        results = await asyncio.gather(*tasks)
         return results
