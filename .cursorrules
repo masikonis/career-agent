@@ -1,56 +1,44 @@
-Project Philosophy
-- Maintain simplicity - this is a personal project, not an enterprise application
-- Favor incremental improvements over large rewrites
-- Follow "You Aren't Gonna Need It" (YAGNI) principle - implement only what's necessary
-- Use latest stable versions of dependencies and follow their official documentation
+# Project Philosophy
+- Maintain simplicity
+- Favor incremental improvements
+- Follow YAGNI principle
+- Use latest stable versions of dependencies
 
-Code Structure and Organization
+# Code Structure
 - Group related functionality into modules
 - Keep files focused and single-purpose
-- Place new code logically within files, maintaining clear section ordering
 
-Python Best Practices
+# Python Best Practices
 - Use type hints consistently
-- Import from src/utils/logger.py for all logging
-- Utilize environment variables from config.py, especially LLM_MODELS
+- Import from src/utils/logger.py for logging
+- Utilize environment variables from config.py
 - Follow PEP 8 style guidelines
-- Use dataclasses for data structures when appropriate
+- Use dataclasses when appropriate
 
-LangChain Usage
-- Prefer high-level interfaces over custom implementations
-- Use LangChain's built-in tools and agents when possible
-- Implement proper error handling for LLM calls
-- Use LangSmith for debugging and monitoring
-- Keep agent prompts simple and focused
+# LangChain Usage
+- Prefer high-level interfaces
+- Use built-in tools and agents
+- Implement error handling for LLM calls
 
-Database (MongoDB)
+# Database (MongoDB)
 - Keep queries simple and readable
-- Use appropriate indexes for frequent queries
-- Avoid complex aggregations when simple queries suffice
-- Include proper error handling for database operations
+- Include error handling for database operations
 - Use type hints for database models
 
-FastAPI Backend
-- Keep endpoints focused and single-purpose
-- Use Pydantic models for request/response validation
-- Implement proper error handling and status codes
-- Keep route handlers clean and delegate complex logic to services
+# FastAPI Backend
+- Keep endpoints focused
+- Use Pydantic models for validation
+- Implement error handling and status codes
 
-Frontend (React/TypeScript)
+# Frontend (React/TypeScript)
 - Use functional components with hooks
-- Leverage Material-UI (MUI) components instead of custom CSS
-- Keep components simple and focused
-- Use Recoil for state management judiciously
-- Follow React best practices for performance
+- Leverage Material-UI components
+- Keep components simple
 
-Testing
-- Write meaningful tests focusing on core functionality
+# Testing
+- Write meaningful tests
 - Use pytest fixtures effectively
-- Mock external services in tests
-- Keep test files organized parallel to source files
 
-Error Handling and Logging
-- Use appropriate log levels (debug, info, warning, error)
-- Include relevant context in error messages
-- Implement proper error boundaries in React
-- Handle API errors gracefully
+# Error Handling and Logging
+- Use appropriate log levels
+- Include context in error messages
