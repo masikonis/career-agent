@@ -1,35 +1,19 @@
 import asyncio
 import json
-from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from zenrows import ZenRowsClient
 
 from src.cache import CacheManager
 from src.config import config
+from src.services.scrapers.base import BaseScraper, ScraperResponse
 from src.utils.logger import get_logger
 
 
-@dataclass
-class ScraperResponse:
-    """Structured response from the scraper"""
-
-    html: str
-    status: int
-    url: str
-    error: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-
-
-class ZenrowsScraper:
+class ZenrowsScraper(BaseScraper):
     def __init__(self, api_key: str = None, options: Dict[str, Any] = None):
-        """Initialize ZenRows scraper with API key and options
-
-        Args:
-            api_key: Optional API key (falls back to config)
-            options: Optional ZenRows client options (e.g., proxy, js_render, etc.)
-        """
+        """Initialize ZenRows scraper with API key and options"""
         self.api_key = api_key or config["ZENROWS_API_KEY"]
         if not self.api_key:
             raise ValueError("ZenRows API key not found")
@@ -51,12 +35,10 @@ class ZenrowsScraper:
     def _prepare_request_params(self, **kwargs) -> Dict[str, Any]:
         """Prepare request parameters by merging defaults with custom params"""
         params = {
-            "js_render": True,  # Enable JavaScript rendering by default
-            "wait": kwargs.get(
-                "wait", 5
-            ),  # Use custom wait if provided, otherwise default to 5
-            **self.options,  # Apply instance options
-            **kwargs,  # Apply request-specific options
+            "js_render": True,
+            "wait": kwargs.get("wait", 5),
+            **self.options,
+            **kwargs,
         }
         return params
 
@@ -67,20 +49,7 @@ class ZenrowsScraper:
         return f"{url}:{params_str}"
 
     async def scrape(self, url: str, retries: int = 3, **kwargs) -> ScraperResponse:
-        """Scrape data from given URL using ZenRows
-
-        Args:
-            url: Target URL to scrape
-            retries: Number of retry attempts
-            **kwargs: Additional ZenRows parameters (overwrites defaults)
-
-        Returns:
-            ScraperResponse object containing results and metadata
-
-        Raises:
-            ValueError: If URL is invalid
-            Exception: For other scraping errors after retries exhausted
-        """
+        """Scrape data from given URL using ZenRows"""
         if not self._validate_url(url):
             raise ValueError(f"Invalid URL: {url}")
 
@@ -93,7 +62,7 @@ class ZenrowsScraper:
             self.logger.info(
                 f"Returning cached response for {url} with params {params}"
             )
-            return cached_response  # Return the cached response directly
+            return cached_response
 
         last_error = None
 
@@ -117,10 +86,8 @@ class ZenrowsScraper:
                 )
 
                 # Cache the response
-                self.cache.set(
-                    cache_key, scraper_response
-                )  # Store the response in cache
-                return scraper_response  # Return the new response
+                self.cache.set(cache_key, scraper_response)
+                return scraper_response
 
             except Exception as e:
                 last_error = str(e)
@@ -135,16 +102,8 @@ class ZenrowsScraper:
                         metadata={"attempts": attempt + 1},
                     )
 
-    async def scrape_multiple(self, urls: list[str], **kwargs) -> list[ScraperResponse]:
-        """Scrape multiple URLs
-
-        Args:
-            urls: List of URLs to scrape
-            **kwargs: Parameters passed to scrape method
-
-        Returns:
-            List of ScraperResponse objects
-        """
+    async def scrape_multiple(self, urls: List[str], **kwargs) -> List[ScraperResponse]:
+        """Scrape multiple URLs"""
         tasks = [self.scrape(url, **kwargs) for url in urls]
         results = await asyncio.gather(*tasks)
         return results

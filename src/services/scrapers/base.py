@@ -14,7 +14,7 @@ class ScraperResponse:
     metadata: Optional[Dict[str, Any]] = None
 
 
-class WebScraper(ABC):
+class BaseScraper(ABC):
     """Base class for web scrapers"""
 
     @abstractmethod

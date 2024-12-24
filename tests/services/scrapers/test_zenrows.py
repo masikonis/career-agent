@@ -1,8 +1,13 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+import os
+from unittest.mock import MagicMock
 
 import pytest
 
 from src.services.scrapers.zenrows import ScraperResponse, ZenrowsScraper
+
+# ----------------------------
+# Mocked Unit Tests Fixtures
+# ----------------------------
 
 
 @pytest.fixture
@@ -38,6 +43,11 @@ def mock_logger(mocker):
 def scraper(mock_zenrows_client, mock_cache_manager, mock_logger):
     """Fixture to create a scraper instance with mocked dependencies."""
     return ZenrowsScraper()
+
+
+# ----------------------------
+# Unit Tests with Mocking
+# ----------------------------
 
 
 @pytest.mark.asyncio
@@ -241,3 +251,59 @@ async def test_cache_separate_keys(scraper, mock_zenrows_client, mock_cache_mana
 
     # Ensure that the client was called twice since cache keys are different
     assert mock_zenrows_client.get.call_count == 2
+
+
+# ----------------------------
+# Real Integration Test
+# ----------------------------
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_real_scrape():
+    """
+    Real integration test that uses the actual ZenRows API to scrape a live URL.
+    This test is not mocked and requires a valid ZenRows API key.
+    """
+    # Retrieve the ZenRows API key from environment variables
+    api_key = os.getenv("ZENROWS_API_KEY")
+    if not api_key:
+        pytest.skip(
+            "ZENROWS_API_KEY environment variable not set. Skipping integration test."
+        )
+
+    # Initialize the scraper with the real API key
+    scraper = ZenrowsScraper(api_key=api_key)
+
+    # Clear the cache to ensure a real request is made
+    scraper.cache.clear()
+
+    # Define a real URL to scrape
+    url = "https://www.example.com/"
+
+    # Perform the scrape
+    response = await scraper.scrape(url)
+
+    # Assertions
+    assert isinstance(
+        response, ScraperResponse
+    ), "Response should be an instance of ScraperResponse."
+    assert response.status == 200, f"Expected status 200, got {response.status}."
+    assert "<html" in response.html.lower(), "Expected HTML content in response."
+    assert response.url == url, f"Expected URL {url}, got {response.url}."
+    assert response.error is None, f"Expected no error, got {response.error}."
+    assert response.metadata is not None, "Metadata should not be None."
+    assert "headers" in response.metadata, "Metadata should contain 'headers'."
+    assert "params_used" in response.metadata, "Metadata should contain 'params_used'."
+
+    # Optional: Verify that the response is cached
+    cached_response = scraper.cache.get(
+        scraper._generate_cache_key(url, scraper._prepare_request_params())
+    )
+    assert cached_response == response, "The response should be cached."
+
+    # Optional: Perform a second scrape to test cache hit
+    response_cached = await scraper.scrape(url)
+    assert (
+        response_cached == response
+    ), "Cached response should match the original response."
