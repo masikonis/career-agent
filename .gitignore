@@ -1,5 +1,11 @@
-# Local data and databases
-data/
+# Local development
+local_dev/
+temp/
+tmp/
+
+# Environment variables
+.env
+.env.*
 
 # Python
 __pycache__/
@@ -34,10 +40,6 @@ ENV/
 *.swo
 .DS_Store
 
-# Environment variables
-.env
-.env.*
-
 # LangChain and LangSmith specific
 .langchain.db
 .langsmith/
@@ -64,11 +66,6 @@ coverage.xml
 
 # Poetry
 poetry.lock
-
-# Local development
-local_dev/
-temp/
-tmp/
 
 # Frontend
 static/*
