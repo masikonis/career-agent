@@ -9,13 +9,13 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-class StorageError(Exception):
-    """Base exception for storage operations"""
+class RepositoryError(Exception):
+    """Base exception for repository operations"""
 
     pass
 
 
-class EntityNotFoundError(StorageError):
+class EntityNotFoundError(RepositoryError):
     """Raised when an entity is not found"""
 
     def __init__(self, entity_type: str, entity_id: str):
@@ -57,6 +57,17 @@ class MongoDB:
         await self.db.companies.create_index("name")
         await self.db.companies.create_index("industry")
         await self.db.companies.create_index("stage")
+
+        # Job indexes
+        await self.db.jobs.create_index("company_id")
+        await self.db.jobs.create_index("active")
+        await self.db.jobs.create_index("match_score")
+
+        # Text search indexes
+        await self.db.companies.create_index([("description", "text")])
+        await self.db.jobs.create_index(
+            [("description", "text"), ("requirements", "text")]
+        )
 
     async def close(self):
         self.client.close()

@@ -29,18 +29,25 @@ class CompanyIndustry(str, Enum):
     NON_DIGITAL = "non_digital"
 
 
-class Company(BaseModel):
-    """Represents a company"""
+class BaseDocument(BaseModel):
+    """Base class for all database documents"""
 
     id: Optional[str] = Field(None, alias="_id")
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class Company(BaseDocument):
+    """Represents a company"""
+
     name: str
     description: str
     industry: CompanyIndustry
     stage: CompanyStage
     website: str
-    company_fit_score: float = 0.0
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    company_fit_score: float = Field(default=0.0, ge=0, le=1)
 
     # Vector search field
     description_embedding: Optional[List[float]] = None
@@ -53,8 +60,6 @@ class Company(BaseModel):
         except Exception:
             raise ValueError("Invalid website URL format")
 
-    model_config = ConfigDict(populate_by_name=True)
-
 
 class CompanyFilters(BaseModel):
     """Filters for company search"""
@@ -66,10 +71,9 @@ class CompanyFilters(BaseModel):
     date_to: Optional[datetime] = None
 
 
-class JobAd(BaseModel):
+class JobAd(BaseDocument):
     """Represents a job advertisement"""
 
-    id: Optional[str] = Field(None, alias="_id")
     company_id: str
     title: str
     description: str
@@ -77,13 +81,11 @@ class JobAd(BaseModel):
     salary_range: Optional[tuple[int, int]] = None
 
     # Job status
-    posted_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
     active: bool = True
     archived_at: Optional[datetime] = None
 
     # Evaluation fields
-    match_score: Optional[float] = None
+    match_score: Optional[float] = Field(None, ge=0, le=1)
     skills_match: List[str] = Field(default_factory=list)
     evaluation_notes: Optional[str] = None
     evaluated_at: Optional[datetime] = None
@@ -92,4 +94,8 @@ class JobAd(BaseModel):
     description_embedding: Optional[List[float]] = None
     requirements_embedding: Optional[List[float]] = None
 
-    model_config = ConfigDict(populate_by_name=True)
+    @field_validator("salary_range")
+    def validate_salary_range(cls, v):
+        if v and v[0] > v[1]:
+            raise ValueError("Minimum salary cannot be greater than maximum")
+        return v
