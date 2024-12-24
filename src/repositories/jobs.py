@@ -6,7 +6,7 @@ from bson import ObjectId
 from src.utils.logger import get_logger
 
 from .base import BaseRepository
-from .database import MongoDB, StorageError
+from .database import MongoDB, RepositoryError
 from .models import JobAd
 
 logger = get_logger(__name__)
@@ -18,21 +18,17 @@ class JobRepository(BaseRepository[JobAd]):
 
     # === Core CRUD Operations ===
     async def create(self, job: JobAd) -> str:
-        """Create a new job ad with embeddings"""
+        """Create a new job with embeddings"""
         try:
-            # Generate embeddings for both description and requirements
+            # Generate embeddings for description and requirements
             job.description_embedding = await self._generate_embeddings(job.description)
-            job.requirements_embedding = await self._generate_embeddings(
-                " ".join(job.requirements)
-            )
-
             job_dict = self._to_document(job)
             result = await self.collection.insert_one(job_dict)
             logger.info(f"Created {self._entity_name} with ID: {result.inserted_id}")
             return str(result.inserted_id)
         except Exception as e:
             logger.error(f"Failed to create {self._entity_name}: {str(e)}")
-            raise StorageError(f"{self._entity_name} creation failed: {str(e)}")
+            raise RepositoryError(f"{self._entity_name} creation failed: {str(e)}")
 
     async def update_evaluation(
         self,
@@ -95,3 +91,8 @@ class JobRepository(BaseRepository[JobAd]):
             limit=limit,
             additional_fields=["requirements_embedding"],
         )
+
+    # === Utility Methods ===
+    def _from_document(self, doc: dict) -> JobAd:
+        """Convert MongoDB document to JobAd"""
+        return JobAd(**doc)

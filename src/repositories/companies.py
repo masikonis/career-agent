@@ -6,7 +6,7 @@ from bson import ObjectId
 from src.utils.logger import get_logger
 
 from .base import BaseRepository
-from .database import MongoDB, StorageError
+from .database import MongoDB, RepositoryError
 from .models import Company, CompanyFilters
 
 logger = get_logger(__name__)
@@ -30,7 +30,7 @@ class CompanyRepository(BaseRepository[Company]):
             return str(result.inserted_id)
         except Exception as e:
             logger.error(f"Failed to create {self._entity_name}: {str(e)}")
-            raise StorageError(f"{self._entity_name} creation failed: {str(e)}")
+            raise RepositoryError(f"{self._entity_name} creation failed: {str(e)}")
 
     # === Search Operations ===
     async def search(
@@ -44,7 +44,15 @@ class CompanyRepository(BaseRepository[Company]):
             filter_query = self._build_filter_query(filters) if filters else {}
 
             if query:
-                return await self.search_text(query, filter_query, limit)
+                # Use MongoDB text search
+                filter_query["$text"] = {"$search": query}
+                results, _ = await self.get_paginated(
+                    query=filter_query,
+                    page=1,
+                    page_size=limit,
+                    sort_by=[("score", {"$meta": "textScore"})],
+                )
+                return results
 
             # Handle filter-only case
             results, _ = await self.get_paginated(
@@ -53,7 +61,7 @@ class CompanyRepository(BaseRepository[Company]):
             return results
         except Exception as e:
             logger.error(f"Search failed in {self._entity_name}: {str(e)}")
-            raise StorageError(f"Search failed: {str(e)}")
+            raise RepositoryError(f"Search failed: {str(e)}")
 
     async def search_similar(
         self, description: str, limit: int = 10, min_score: Optional[float] = None
@@ -68,6 +76,14 @@ class CompanyRepository(BaseRepository[Company]):
         )
 
     # === Utility Methods ===
+    def _from_document(self, doc: dict) -> Company:
+        """Convert MongoDB document to Company"""
+        return Company(**doc)
+
+    def _to_document(self, company: Company) -> dict:
+        """Convert Company to MongoDB document"""
+        return company.model_dump(exclude={"id"}, by_alias=True, exclude_none=True)
+
     def _build_filter_query(self, filters: CompanyFilters) -> dict:
         """Build MongoDB query from filters"""
         filter_query = {}

@@ -53,21 +53,39 @@ class MongoDB:
 
     async def _create_indexes(self):
         """Create all required indexes"""
-        # Regular indexes
-        await self.db.companies.create_index("name")
-        await self.db.companies.create_index("industry")
-        await self.db.companies.create_index("stage")
+        try:
+            # Drop existing indexes first in test environment
+            if "test" in self.db.name.lower():
+                await self.db.companies.drop_indexes()
+                await self.db.jobs.drop_indexes()
+                logger.info("Dropped existing indexes in test database")
 
-        # Job indexes
-        await self.db.jobs.create_index("company_id")
-        await self.db.jobs.create_index("active")
-        await self.db.jobs.create_index("match_score")
+            # Regular indexes for companies
+            await self.db.companies.create_index("name")
+            await self.db.companies.create_index("industry")
+            await self.db.companies.create_index("stage")
+            await self.db.companies.create_index("company_fit_score")
 
-        # Text search indexes
-        await self.db.companies.create_index([("description", "text")])
-        await self.db.jobs.create_index(
-            [("description", "text"), ("requirements", "text")]
-        )
+            # Regular indexes for jobs
+            await self.db.jobs.create_index("company_id")
+            await self.db.jobs.create_index("active")
+            await self.db.jobs.create_index("match_score")
+
+            # Text search indexes
+            await self.db.companies.create_index(
+                [("name", "text"), ("description", "text")],
+                weights={"name": 2, "description": 1},
+            )
+
+            await self.db.jobs.create_index(
+                [("title", "text"), ("description", "text"), ("requirements", "text")],
+                weights={"title": 3, "description": 2, "requirements": 1},
+            )
+
+            logger.info("Successfully created all indexes")
+        except Exception as e:
+            logger.error(f"Failed to create indexes: {str(e)}")
+            raise RepositoryError(f"Failed to create database indexes: {str(e)}")
 
     async def close(self):
         self.client.close()

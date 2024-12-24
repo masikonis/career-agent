@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pytest
 import pytest_asyncio
 
-from src.repositories.database import EntityNotFoundError, MongoDB, StorageError
+from src.repositories.database import EntityNotFoundError, MongoDB, RepositoryError
 from src.repositories.jobs import JobRepository
 from src.repositories.models import JobAd
 from src.utils.logger import get_logger
@@ -118,7 +118,7 @@ async def test_error_handling(repository):
     """Test error cases"""
 
     # Invalid ID format
-    with pytest.raises(StorageError):
+    with pytest.raises(RepositoryError):
         await repository.get("invalid-id")
 
     # Non-existent ID
