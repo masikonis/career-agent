@@ -2,9 +2,10 @@ from datetime import datetime, timedelta
 
 import pytest
 import pytest_asyncio
+from pydantic import ValidationError
 
 from src.repositories.companies import CompanyRepository
-from src.repositories.database import EntityNotFoundError, MongoDB
+from src.repositories.database import EntityNotFoundError, MongoDB, RepositoryError
 from src.repositories.jobs import JobRepository
 from src.repositories.models import (
     Company,
@@ -452,3 +453,233 @@ async def test_error_and_bulk_scenarios(repositories):
     assert all(job.company_id == company_id for job in company_jobs)
 
     logger.info("Completed error handling and bulk operations test")
+
+
+@pytest.mark.asyncio
+async def test_company_lifecycle_scenarios(repositories):
+    """Test company lifecycle and its impact on jobs"""
+    company_repo, job_repo = repositories
+    logger.info("Starting company lifecycle test")
+
+    # 1. Setup: Create company with multiple jobs
+    company = Company(
+        name="Growth Startup",
+        description="Fast-growing tech startup",
+        industry=CompanyIndustry.SAAS,
+        stage=CompanyStage.SEED,
+        website="https://growth-startup.com",
+        company_fit_score=0.88,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    company_id = await company_repo.create(company)
+
+    # Create jobs at different stages
+    jobs = [
+        JobAd(
+            company_id=company_id,
+            title="Senior Developer",
+            description="Lead development role",
+            requirements=["Python", "Leadership"],
+            salary_range=(130000, 180000),
+            active=True,
+        ),
+        JobAd(
+            company_id=company_id,
+            title="Product Designer",
+            description="Design product experience",
+            requirements=["Figma", "User Research"],
+            salary_range=(110000, 150000),
+            active=True,
+        ),
+    ]
+
+    job_ids = []
+    for job in jobs:
+        job_id = await job_repo.create(job)
+        job_ids.append(job_id)
+
+    # 2. Test company stage transitions
+    # 2.1 Seed to Series A transition
+    company.stage = CompanyStage.SERIES_A
+    company.updated_at = datetime.now()
+    await company_repo.update(company_id, company)
+
+    # Verify company update
+    updated_company = await company_repo.get(company_id)
+    assert updated_company.stage == CompanyStage.SERIES_A
+
+    # 2.2 Update job requirements after funding
+    new_requirements = ["Python", "Leadership", "Scale Experience"]
+    await job_repo.update(job_ids[0], {"requirements": new_requirements})
+
+    updated_job = await job_repo.get(job_ids[0])
+    assert "Scale Experience" in updated_job.requirements
+
+    # 3. Test company search with multiple criteria
+    # 3.1 Search by industry and stage
+    series_a_companies = await company_repo.search(
+        filters=CompanyFilters(
+            industries=[CompanyIndustry.SAAS],
+            stages=[CompanyStage.SERIES_A],
+            min_match_score=0.8,
+        )
+    )
+    assert len(series_a_companies) == 1
+    assert series_a_companies[0].name == "Growth Startup"
+
+    # 3.2 Search by date range
+    recent_companies = await company_repo.search(
+        filters=CompanyFilters(
+            date_from=datetime.now() - timedelta(hours=1),
+            date_to=datetime.now() + timedelta(hours=1),
+        )
+    )
+    assert len(recent_companies) > 0
+
+    # 4. Test job archiving scenarios
+    # 4.1 Archive job with replacement
+    await job_repo.archive_job(job_ids[0])  # Archive Senior Developer role
+
+    # Create replacement job
+    new_job = JobAd(
+        company_id=company_id,
+        title="Engineering Manager",  # Upgraded role
+        description="Lead engineering team and scale operations",
+        requirements=["Python", "Leadership", "Scale Experience"],
+        salary_range=(150000, 200000),
+        active=True,
+    )
+    new_job_id = await job_repo.create(new_job)
+
+    # 4.2 Verify active vs archived jobs
+    active_jobs = await job_repo.get_company_jobs(company_id, include_archived=False)
+    assert len(active_jobs) == 2  # Product Designer + Engineering Manager
+
+    all_jobs = await job_repo.get_company_jobs(company_id, include_archived=True)
+    assert len(all_jobs) == 3  # Including archived Senior Developer
+
+    # 4.3 Verify job history is maintained
+    archived_jobs = [job for job in all_jobs if not job.active]
+    assert len(archived_jobs) == 1
+    assert archived_jobs[0].title == "Senior Developer"
+    assert archived_jobs[0].archived_at is not None
+
+    # 5. Test similar job search with context
+    similar_jobs = await job_repo.search_similar(
+        description="Engineering leadership and team scaling"
+    )
+    assert any("Engineering Manager" in job.title for job in similar_jobs)
+
+    logger.info("Completed company lifecycle test")
+
+
+@pytest.mark.asyncio
+async def test_edge_cases_and_validations(repositories):
+    """Test edge cases and validation scenarios"""
+    company_repo, job_repo = repositories
+    logger.info("Starting edge cases and validation test")
+
+    # 1. Test empty description handling
+    company = Company(
+        name="Empty Desc Co",
+        description="",  # Empty description
+        industry=CompanyIndustry.SAAS,
+        stage=CompanyStage.SEED,
+        website="https://empty-desc.com",
+        company_fit_score=0.75,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    company_id = await company_repo.create(company)
+    assert company_id, "Should handle empty description"
+
+    # 2. Test combined search criteria
+    companies = await company_repo.search(
+        query="Empty",  # Text search
+        filters=CompanyFilters(  # Combined with filters
+            industries=[CompanyIndustry.SAAS],
+            stages=[CompanyStage.SEED],
+            min_match_score=0.7,
+        ),
+        limit=5,
+    )
+    assert len(companies) == 1
+    assert companies[0].name == "Empty Desc Co"
+
+    # 3. Test empty search results
+    no_results = await company_repo.search(query="NonexistentCompany123", limit=10)
+    assert len(no_results) == 0
+
+    # 4. Test vector search with min_score
+    similar_companies = await company_repo.search_similar(
+        description="Software company", min_score=0.99  # Very high threshold
+    )
+    assert (
+        len(similar_companies) == 0
+    )  # Should find no matches with such high threshold
+
+    # 5. Test job with invalid salary range
+    with pytest.raises(ValidationError):
+        job = JobAd(
+            company_id=company_id,
+            title="Invalid Salary Job",
+            description="Test job",
+            requirements=["Python"],
+            salary_range=(200000, 100000),  # Max less than min
+            active=True,
+        )
+        # Note: We don't even need to call create() since the validation fails at model creation
+
+    # 6. Test job with valid salary range
+    job = JobAd(
+        company_id=company_id,
+        title="Valid Salary Job",
+        description="Test job",
+        requirements=["Python"],
+        salary_range=(100000, 200000),  # Valid range
+        active=True,
+    )
+    job_id = await job_repo.create(job)
+    assert job_id, "Should create job with valid salary range"
+
+    # 7. Test duplicate company detection
+    duplicate_company = Company(
+        name="Empty Desc Co",  # Same name
+        description="Different description",
+        industry=CompanyIndustry.SAAS,
+        stage=CompanyStage.SEED,
+        website="https://empty-desc.com",  # Same website
+        company_fit_score=0.75,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    with pytest.raises(RepositoryError):
+        await company_repo.create(duplicate_company)
+
+    # 8. Test invalid stage transition
+    company.stage = CompanyStage.EARLY
+    await company_repo.update(company_id, company)  # SEED -> EARLY (valid)
+
+    company.stage = CompanyStage.SEED
+    with pytest.raises(ValueError):
+        await company_repo.update(company_id, company)  # EARLY -> SEED (invalid)
+
+    # 9. Test job search with empty requirements
+    job = JobAd(
+        company_id=company_id,
+        title="No Requirements Job",
+        description="Test job",
+        requirements=[],  # Empty requirements
+        salary_range=(100000, 150000),
+        active=True,
+    )
+    job_id = await job_repo.create(job)
+    assert job_id, "Should handle empty requirements"
+
+    similar_jobs = await job_repo.search_similar(
+        description="Test job with no requirements"
+    )
+    assert any(j.id == job_id for j in similar_jobs)
+
+    logger.info("Completed edge cases and validation test")

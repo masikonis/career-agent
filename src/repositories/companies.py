@@ -7,7 +7,7 @@ from src.utils.logger import get_logger
 
 from .base import BaseRepository
 from .database import MongoDB, RepositoryError
-from .models import Company, CompanyFilters
+from .models import Company, CompanyFilters, CompanyStage
 
 logger = get_logger(__name__)
 
@@ -100,3 +100,52 @@ class CompanyRepository(BaseRepository[Company]):
             if filters.date_to:
                 filter_query["created_at"]["$lte"] = filters.date_to
         return filter_query
+
+    async def update(self, company_id: str, company: Company) -> bool:
+        """Update company with stage transition validation"""
+        try:
+            # First get the current company state
+            current_company = await self.get(company_id)
+
+            # Validate stage transition
+            if current_company.stage != company.stage:
+                if self._is_invalid_stage_transition(
+                    current_company.stage, company.stage
+                ):
+                    logger.error(
+                        f"Invalid stage transition from {current_company.stage} to {company.stage}"
+                    )
+                    raise ValueError(
+                        f"Cannot transition company from {current_company.stage} to {company.stage}"
+                    )
+
+            company_dict = self._to_document(company)
+            return await super().update(company_id, company_dict)
+        except Exception as e:
+            logger.error(f"Failed to update {self._entity_name}: {str(e)}")
+            raise
+
+    def _is_invalid_stage_transition(
+        self, current_stage: CompanyStage, new_stage: CompanyStage
+    ) -> bool:
+        """
+        Validate company stage transitions.
+        Companies can only progress forward in stages:
+        IDEA -> PRE_SEED -> MVP -> SEED -> EARLY -> SERIES_A -> LATER
+        """
+        stage_order = {
+            CompanyStage.IDEA: 0,
+            CompanyStage.PRE_SEED: 1,
+            CompanyStage.MVP: 2,
+            CompanyStage.SEED: 3,
+            CompanyStage.EARLY: 4,
+            CompanyStage.SERIES_A: 5,
+            CompanyStage.LATER: 6,
+        }
+
+        # Get numeric values for stages
+        current_value = stage_order[current_stage]
+        new_value = stage_order[new_stage]
+
+        # Cannot go backwards in stages
+        return new_value < current_value

@@ -66,6 +66,13 @@ class MongoDB:
             await self.db.companies.create_index("stage")
             await self.db.companies.create_index("company_fit_score")
 
+            # Unique compound index for companies
+            await self.db.companies.create_index(
+                [("name", 1), ("website", 1)],
+                unique=True,
+                name="unique_company_name_website",
+            )
+
             # Regular indexes for jobs
             await self.db.jobs.create_index("company_id")
             await self.db.jobs.create_index("active")
