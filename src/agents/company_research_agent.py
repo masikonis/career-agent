@@ -24,35 +24,29 @@ class CompanyResearchAgent:
         """Research company and return structured Company data"""
 
         try:
-            # Scrape website
-            response = await self.scraper.scrape(website)
-            if response.error:
-                return f"Error scraping website: {response.error}"
-
-            logger.info(f"Successfully scraped website: {website}")
+            # Provide context to AI instead of scraping
+            context = f"Company Name: {company_name}, Website: {website}"
+            logger.info(f"Providing context to AI for: {company_name}")
 
             message = HumanMessage(
-                content=f"""Analyze this company website and provide specific information in a structured way.
-            Company Name: {company_name}
-            Website: {website}
-            
-            HTML Content: {response.html}
-            
-            Please analyze and provide:
-            1. A clear, concise description of what the company does (2-3 sentences)
-            2. The company's industry (must be one of: SAAS, FINTECH, EDTECH, AI, MARKETPLACE, ENTERPRISE, OTHER)
-            3. Company stage (must be one of: IDEA, PRE_SEED, MVP, SEED, EARLY, SERIES_A, LATER) - infer from their content
-            4. A company fit score (0.0 to 1.0) based on:
-               - Technology alignment (modern tech stack)
-               - Growth potential
-               - Market position
-            
-            Format your response as:
-            DESCRIPTION: <description>
-            INDUSTRY: <industry>
-            STAGE: <stage>
-            FIT_SCORE: <score>
-            REASONING: <brief explanation of the fit score>"""
+                content=f"""Analyze the following context and provide specific information in a structured way.
+                {context}
+                
+                Please analyze and provide:
+                1. A clear, concise description of what the company does (2-3 sentences)
+                2. The company's industry (must be one of: SAAS, FINTECH, EDTECH, AI, MARKETPLACE, ENTERPRISE, OTHER)
+                3. Company stage (must be one of: IDEA, PRE_SEED, MVP, SEED, EARLY, SERIES_A, LATER) - infer from their content
+                4. A company fit score (0.0 to 1.0) based on:
+                   - Technology alignment (modern tech stack)
+                   - Growth potential
+                   - Market position
+                
+                Format your response as:
+                DESCRIPTION: <description>
+                INDUSTRY: <industry>
+                STAGE: <stage>
+                FIT_SCORE: <score>
+                REASONING: <brief explanation of the fit score>"""
             )
 
             response = await self.llm.ainvoke([message])
